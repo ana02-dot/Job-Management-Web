@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+*.dll
+*.pdb
+bin/
+obj/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+**/.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+Logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+postgres-data/
+*.db
+*.sqlite
+
+# Angular
+.angular/
+*.ngfactory.ts
+*.ngsummary.json
+
+# .NET
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+*.exe
+*.pch
+*.ilk
+*.obj
+*.log
+.vs/
+.vscode/
+*.csproj.user
+*.csproj.vspscc
+*.sln.docstates
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
