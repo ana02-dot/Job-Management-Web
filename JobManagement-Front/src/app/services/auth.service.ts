@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { HttpClient, HttpHeaders, HttpErrorResponse } from '@angular/common/http';
+import { Observable, BehaviorSubject, throwError } from 'rxjs';
+import { tap, catchError } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface LoginRequest {
@@ -71,29 +71,43 @@ export class AuthService {
   }
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, credentials)
-      .pipe(
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json'
+    });
+
+    console.log('Login request URL:', `${environment.apiUrl}/user/login`);
+    console.log('Login credentials:', { email: credentials.email });
+
+    return this.http.post<LoginResponse>(
+        `${environment.apiUrl}/auth/login`,
+        credentials,
+        { headers }
+    ).pipe(
         tap(response => {
+          console.log('Login response:', response);
           if (response.token) {
             localStorage.setItem('token', response.token);
+
             // Decode JWT token to extract user info
             const tokenPayload = this.decodeToken(response.token);
+            console.log('Token payload:', tokenPayload);
+
             const userId = this.getClaimValue(
-              tokenPayload,
-              'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
-              'nameid'
+                tokenPayload,
+                'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+                'nameid'
             );
             const userEmail = this.getClaimValue(
-              tokenPayload,
-              'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
-              'email'
+                tokenPayload,
+                'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+                'email'
             ) || response.email;
             const userRole = this.getClaimValue(
-              tokenPayload,
-              'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role',
-              'role'
+                tokenPayload,
+                'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role',
+                'role'
             );
-            
+
             const user: User = {
               id: parseInt(userId) || 0,
               email: userEmail,
@@ -102,7 +116,7 @@ export class AuthService {
               role: this.parseRole(userRole || '2'),
               token: response.token
             };
-            
+
             // Fetch full user info
             this.http.get<any>(`${environment.apiUrl}/user/email?email=${encodeURIComponent(user.email)}`).subscribe({
               next: (userInfo: any) => {
@@ -112,15 +126,17 @@ export class AuthService {
                 localStorage.setItem('user', JSON.stringify(user));
                 this.currentUserSubject.next(user);
               },
-              error: () => {
+              error: (error) => {
+                console.error('Error fetching user info:', error);
                 // If fetch fails, still save what we have
                 localStorage.setItem('user', JSON.stringify(user));
                 this.currentUserSubject.next(user);
               }
             });
           }
-        })
-      );
+        }),
+        catchError(this.handleError)
+    );
   }
 
   private decodeToken(token: string): any {
@@ -132,6 +148,7 @@ export class AuthService {
       }).join(''));
       return JSON.parse(jsonPayload);
     } catch (e) {
+      console.error('Error decoding token:', e);
       return {};
     }
   }
@@ -145,11 +162,8 @@ export class AuthService {
   }
 
   private getClaimValue(payload: any, claimName: string, shortName?: string): string {
-    // Try full URI first (what .NET uses)
     if (payload[claimName]) return payload[claimName];
-    // Try short name
     if (shortName && payload[shortName]) return payload[shortName];
-    // Try common variations
     const variations = [
       claimName.split('/').pop() || '',
       claimName.split('.').pop() || ''
@@ -161,7 +175,21 @@ export class AuthService {
   }
 
   register(userData: UserRegistrationRequest): Observable<UserRegistrationResponse> {
-    return this.http.post<UserRegistrationResponse>(`${environment.apiUrl}/user/register`, userData);
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json'
+    });
+
+    console.log('Register request URL:', `${environment.apiUrl}/user/register`);
+    console.log('Registration data:', userData);
+
+    return this.http.post<UserRegistrationResponse>(
+        `${environment.apiUrl}/user/register`,
+        userData,
+        { headers }
+    ).pipe(
+        tap(response => console.log('Registration response:', response)),
+        catchError(this.handleError)
+    );
   }
 
   logout(): void {
@@ -181,5 +209,30 @@ export class AuthService {
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
-}
 
+  private handleError(error: HttpErrorResponse) {
+    console.error('HTTP Error occurred:', error);
+
+    let errorMessage = 'An error occurred';
+
+    if (error.error instanceof ErrorEvent) {
+      // Client-side or network error
+      console.error('Client-side error:', error.error.message);
+      errorMessage = `Network error: ${error.error.message}`;
+    } else if (error.status === 0) {
+      // Status 0 usually means CORS issue or network failure
+      console.error('CORS or Network Error - Check if backend is running and CORS is configured');
+      errorMessage = 'Cannot connect to server. Please check if the backend is running at http://localhost:5265';
+    } else {
+      // Backend returned an unsuccessful response code
+      console.error(`Backend returned code ${error.status}, body:`, error.error);
+      errorMessage = error.error?.message || error.message || `Server error: ${error.status}`;
+    }
+
+    return throwError(() => ({
+      error: { message: errorMessage },
+      status: error.status,
+      fullError: error
+    }));
+  }
+}
