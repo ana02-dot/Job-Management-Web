@@ -49,7 +49,7 @@ export class JobApplicationService {
   }
 
   createApplication(application: CreateApplicationRequest): Observable<any> {
-    return this.http.post(`${environment.apiUrl}/jobapplication/submit`, application);
+    return this.http.post(`${environment.apiUrl}/jobapplication/submit`, application, { headers: this.getHeaders() });
   }
 
   updateApplicationStatus(id: number, status: number): Observable<any> {

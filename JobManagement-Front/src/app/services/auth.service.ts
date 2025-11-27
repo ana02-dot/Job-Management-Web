@@ -222,7 +222,7 @@ export class AuthService {
     } else if (error.status === 0) {
       // Status 0 usually means CORS issue or network failure
       console.error('CORS or Network Error - Check if backend is running and CORS is configured');
-      errorMessage = 'Cannot connect to server. Please check if the backend is running at http://localhost:5265';
+      errorMessage = `Cannot connect to server. Please check if the backend is running at ${environment.apiUrl}`;
     } else {
       // Backend returned an unsuccessful response code
       console.error(`Backend returned code ${error.status}, body:`, error.error);

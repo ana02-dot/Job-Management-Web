@@ -68,9 +68,7 @@ builder.Services.AddCors(options =>
             )
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials() 
-            .SetIsOriginAllowed(origin => true);
-    });
+            .AllowCredentials();
 });
 // Repositories
 builder.Services.AddScoped<IUserRepository, UserRepository>();
