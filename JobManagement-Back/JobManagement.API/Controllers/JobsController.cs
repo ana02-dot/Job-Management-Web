@@ -97,9 +97,21 @@ public class JobsController : ControllerBase
 
     private int GetCurrentUserId()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        // Log all claims for debugging
+        Log.Information("All claims in token: {Claims}", string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
+
+        // Try multiple claim types that might contain the user ID
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                          ?? User.FindFirst("nameid")?.Value
+                          ?? User.FindFirst("sub")?.Value
+                          ?? User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value;
+
         if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+        {
+            Log.Error("User ID not found in token claims. Available claims: {Claims}",
+                string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
             throw new InvalidOperationException("User ID not found in token claims");
+        }
         return userId;
     }
 }
