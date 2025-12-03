@@ -3,6 +3,7 @@ using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using JobManagement.Domain.Enums;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Serilog;
 
 namespace JobManagement.Application.Services;
 
@@ -19,13 +20,23 @@ public class JobService : IJobService
 
      public async Task<Job> CreateJobAsync(CreateJobRequest request, int createdBy)
     {
+        Log.Information("JobService.CreateJobAsync called with createdBy: {CreatedBy}", createdBy);
+
         // Validate creator exists and has proper role
         var creator = await _userRepository.GetByIdAsync(createdBy);
         if (creator == null)
-            throw new InvalidOperationException("Creator not found");
+        {
+            Log.Error("Creator not found for ID: {CreatedBy}", createdBy);
+            throw new InvalidOperationException($"Creator not found for ID: {createdBy}");
+        }
+
+        Log.Information("Creator found: {Email}, Role: {Role}", creator.Email, creator.Role);
 
         if (creator.Role != UserRole.HR && creator.Role != UserRole.Admin)
+        {
+            Log.Warning("User {Email} with role {Role} attempted to create job", creator.Email, creator.Role);
             throw new UnauthorizedAccessException("Only HR and Admin users can create jobs");
+        }
 
         var job = new Job
         {
@@ -41,8 +52,23 @@ public class JobService : IJobService
             Creator = null // Explicitly set to null to prevent EF tracking issues
         };
 
-        var createdJob = await _jobRepository.CreateAsync(job);
-        return createdJob;
+        Log.Information("About to save job to database. CreatedBy: {CreatedBy}, Title: {Title}", createdBy, job.Title);
+
+        try
+        {
+            var createdJob = await _jobRepository.CreateAsync(job);
+            Log.Information("Job saved successfully with ID: {JobId}", createdJob.Id);
+            return createdJob;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to save job to database. CreatedBy: {CreatedBy}, Error: {Message}", createdBy, ex.Message);
+            if (ex.InnerException != null)
+            {
+                Log.Error("Inner exception: {InnerMessage}", ex.InnerException.Message);
+            }
+            throw;
+        }
     }
 
     public async Task<Job?> GetJobByIdAsync(int id) =>
