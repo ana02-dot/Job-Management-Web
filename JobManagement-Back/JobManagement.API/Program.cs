@@ -1,3 +1,4 @@
+using JobManagement.API.Helpers;
 using JobManagement.Application.Interfaces;
 using JobManagement.Application.Services;
 using JobManagement.Infrastructure.Configuration;
@@ -13,6 +14,11 @@ using JobManagement.Application.Middlewares;
 using JobManagement.Application.Profiles;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var preferredPort = builder.Configuration.GetValue("ServerOptions:PreferredPort", 5265);
+var httpPort = PortUtility.GetAvailablePort(preferredPort);
+builder.WebHost.UseUrls($"http://127.0.0.1:{httpPort}");
+builder.Services.AddSingleton(new ServerPortOptions(httpPort));
 
 // Configure Serilog
 builder.Host.UseSerilog();
@@ -86,15 +92,18 @@ builder.Services.AddHttpClient<PhoneValidationService>();
 
 var app = builder.Build();
 
+var portOptions = app.Services.GetRequiredService<ServerPortOptions>();
+
 // Middleware pipeline
 app.UseSwaggerConfiguration();
 
 app.UseCors("AllowAngularApp");
 
-app.UseHttpsRedirection();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/__system/port", (ServerPortOptions options) => Results.Ok(new { options.HttpPort }));
 
 app.Run();
