@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job, CreateJobRequest } from '../../services/job.service';
 import { JobApplicationService, Application } from '../../services/job-application.service';
-import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut } from 'lucide-angular';
+import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut, AlertCircle } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -79,10 +79,33 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
           </div>
         </div>
 
+        <!-- Error Message -->
+        <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <lucide-alert-circle class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <h3 class="font-semibold text-red-900 mb-1">Error</h3>
+            <p class="text-sm text-red-700 whitespace-pre-wrap">{{ errorMessage }}</p>
+          </div>
+          <button (click)="errorMessage = ''" class="text-red-400 hover:text-red-600">
+            <lucide-x-circle class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Success Message -->
+        <div *ngIf="successMessage" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <lucide-check-circle class="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div class="flex-1">
+            <p class="text-sm text-green-700">{{ successMessage }}</p>
+          </div>
+          <button (click)="successMessage = ''" class="text-green-400 hover:text-green-600">
+            <lucide-x-circle class="w-5 h-5" />
+          </button>
+        </div>
+
         <!-- Create Job Section -->
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 class="text-2xl font-bold mb-4 text-slate-900">Post New Job</h2>
-          <form (ngSubmit)="createJob()" class="space-y-4">
+          <div class="space-y-4">
             <div class="grid md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium mb-1 text-slate-700">Job Title *</label>
@@ -139,24 +162,25 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                   placeholder="e.g. 5000">
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1 text-slate-700">Application Deadline *</label>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Application Deadline</label>
                 <input
                   type="date"
                   [(ngModel)]="newJob.applicationDeadline"
-                  name="applicationDeadline"
+                  name="deadline"
                   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required>
+                  [min]="minDate">
               </div>
             </div>
 
             <button
-              type="submit"
+              (click)="createJob()"
+              type="button"
               [disabled]="isCreating"
               class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 font-medium">
               <span *ngIf="!isCreating">Post Job</span>
               <span *ngIf="isCreating">Posting...</span>
             </button>
-          </form>
+          </div>
         </div>
 
         <!-- My Jobs Section -->
@@ -187,7 +211,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                       <lucide-dollar-sign class="w-4 h-4" />
                       <span>₾{{ job.salary }}</span>
                     </div>
-                    <div class="flex items-center gap-1">
+                    <div class="flex items-center gap-1" *ngIf="job.applicationDeadline">
                       <lucide-calendar class="w-4 h-4" />
                       <span>Deadline: {{ job.applicationDeadline | date }}</span>
                     </div>
@@ -202,7 +226,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
               <div class="flex gap-2">
                 <button
-                  (click)="viewApplications(job.id)"
+                  (click)="viewApplications(job.id!)"
                   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                   <lucide-eye class="w-4 h-4" />
                   View Applications
@@ -272,6 +296,9 @@ export class CompanyDashboardComponent implements OnInit {
   applications: Application[] = [];
   totalApplications = 0;
   pendingApplications = 0;
+  errorMessage = '';
+  successMessage = '';
+  minDate = new Date().toISOString().split('T')[0];
 
   newJob: CreateJobRequest = {
     title: '',
@@ -283,10 +310,10 @@ export class CompanyDashboardComponent implements OnInit {
   };
 
   constructor(
-    private router: Router,
-    private authService: AuthService,
-    private jobService: JobService,
-    private jobApplicationService: JobApplicationService
+      private router: Router,
+      private authService: AuthService,
+      private jobService: JobService,
+      private jobApplicationService: JobApplicationService
   ) {}
 
   ngOnInit() {
@@ -306,33 +333,87 @@ export class CompanyDashboardComponent implements OnInit {
       next: (jobs: Job[]) => {
         this.myJobs = jobs;
         this.isLoadingJobs = false;
+        console.log('Loaded jobs:', jobs);
       },
       error: (error: any) => {
         console.error('Error loading jobs:', error);
+        this.errorMessage = 'Failed to load jobs: ' + (error.error?.message || error.message);
         this.isLoadingJobs = false;
       }
     });
   }
 
   createJob() {
+    // Validate required fields
+    if (!this.newJob.title || !this.newJob.description || !this.newJob.requirements || !this.newJob.location) {
+      this.errorMessage = 'Please fill in all required fields (Title, Description, Requirements, Location)';
+      return;
+    }
+
     this.isCreating = true;
-    this.jobService.createJob(this.newJob).subscribe({
-      next: () => {
-        alert('Job posted successfully!');
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    // Prepare job data
+    const jobData: CreateJobRequest = {
+      title: this.newJob.title.trim(),
+      description: this.newJob.description.trim(),
+      requirements: this.newJob.requirements.trim(),
+      location: this.newJob.location.trim(),
+      salary: this.newJob.salary || undefined,
+      applicationDeadline: this.newJob.applicationDeadline
+    };
+
+    console.log('Creating job with data:', jobData);
+
+    this.jobService.createJob(jobData).subscribe({
+      next: (response) => {
+        console.log('Job created successfully:', response);
+        this.successMessage = 'Job posted successfully!';
+
+        // Reset form
         this.newJob = {
           title: '',
           description: '',
           requirements: '',
           location: '',
           salary: undefined,
-          applicationDeadline: ''
+          applicationDeadline: '',
         };
+
         this.loadMyJobs();
         this.isCreating = false;
+
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => {
+          this.successMessage = '';
+        }, 3000);
       },
       error: (error: any) => {
         console.error('Error creating job:', error);
-        alert(error.error?.message || 'Failed to post job');
+
+        let message = 'Failed to post job. ';
+
+        if (error.error?.message) {
+          message += error.error.message;
+        } else if (error.message) {
+          message += error.message;
+        }
+
+        if (error.error?.details) {
+          message += '\n\nDetails: ' + error.error.details;
+        }
+
+        // Add helpful messages based on status
+        if (error.status === 401) {
+          message += '\n\nYour session may have expired. Please logout and login again.';
+        } else if (error.status === 403) {
+          message += '\n\nYou do not have permission to create jobs. Make sure you are logged in as HR.';
+        } else if (error.status === 0) {
+          message += '\n\nCannot connect to server. Please check if the backend is running at http://localhost:5265';
+        }
+
+        this.errorMessage = message;
         this.isCreating = false;
       }
     });
@@ -353,25 +434,21 @@ export class CompanyDashboardComponent implements OnInit {
   }
 
   getActiveJobsCount(): number {
-    return this.myJobs.filter(job => job.status === 0).length;
+    return this.myJobs.filter(job => job.status === 0).length; // 0 = Active
   }
 
-  getStatusText(status: number): string {
-    const statusMap: { [key: number]: string } = {
-      0: 'Active',
-      1: 'Closed',
-      2: 'Cancelled'
-    };
-    return statusMap[status] || 'Unknown';
+  getStatusBadgeClass(status: number | undefined): string {
+    if (status === 0) return 'bg-green-100 text-green-700'; // Active
+    if (status === 1) return 'bg-slate-100 text-slate-700'; // Closed
+    if (status === 2) return 'bg-red-100 text-red-700'; // Cancelled
+    return 'bg-slate-100 text-slate-700';
   }
 
-  getStatusBadgeClass(status: number): string {
-    const classMap: { [key: number]: string } = {
-      0: 'bg-green-100 text-green-700',
-      1: 'bg-slate-100 text-slate-700',
-      2: 'bg-red-100 text-red-700'
-    };
-    return classMap[status] || 'bg-slate-100 text-slate-700';
+  getStatusText(status: number | undefined): string {
+    if (status === 0) return 'Active';
+    if (status === 1) return 'Closed';
+    if (status === 2) return 'Cancelled';
+    return 'Unknown';
   }
 
   getApplicationStatusText(status: number): string {
