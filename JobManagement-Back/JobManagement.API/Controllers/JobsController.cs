@@ -78,6 +78,37 @@ public class JobsController : ControllerBase
         return CreatedAtAction(nameof(GetJob), new { id = createdJob.Id }, createdJob.Id);
     }
 
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,HR")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<ActionResult> UpdateJob(int id, [FromBody] CreateJobRequest request)
+    {
+        Log.Information("Updating job with ID: {JobId}. User claims: {Claims}", id, string.Join(", ", User.Claims.Select(c => $"{c.Type}:{c.Value}")));
+        var userId = GetCurrentUserId();
+        await _jobService.UpdateJobAsync(id, request, userId);
+        Log.Information("Successfully updated job {JobId}", id);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,HR")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
+    [ProducesResponseType(401)]
+    [ProducesResponseType(403)]
+    public async Task<ActionResult> DeleteJob(int id)
+    {
+        Log.Information("Deleting job with ID: {JobId}. User claims: {Claims}", id, string.Join(", ", User.Claims.Select(c => $"{c.Type}:{c.Value}")));
+        var userId = GetCurrentUserId();
+        await _jobService.DeleteJobAsync(id, userId);
+        Log.Information("Successfully deleted job {JobId}", id);
+        return NoContent();
+    }
+
     private int GetCurrentUserId()
     {
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
