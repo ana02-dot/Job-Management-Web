@@ -91,7 +91,7 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Location).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Status).HasConversion<int>();
             entity.Property(e => e.Salary).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.ApplicationDeadline).IsRequired(false);
+            entity.Property(e => e.ApplicationDeadline).IsRequired();
 
             // Navigation properties configuration
             entity.HasMany(j => j.Applications)
