@@ -19,11 +19,11 @@ public class JobService : IJobService
 
      public async Task<Job> CreateJobAsync(CreateJobRequest request, int createdBy)
     {
-        // Validate creator
+        // Validate creator exists and has proper role
         var creator = await _userRepository.GetByIdAsync(createdBy);
         if (creator == null)
             throw new InvalidOperationException("Creator not found");
-        
+
         if (creator.Role != UserRole.HR && creator.Role != UserRole.Admin)
             throw new UnauthorizedAccessException("Only HR and Admin users can create jobs");
 
@@ -37,7 +37,8 @@ public class JobService : IJobService
             ApplicationDeadline = request.ApplicationDeadline,
             CreatedBy = createdBy,
             CreatedAt = DateTime.UtcNow,
-            Status = JobStatus.Active
+            Status = JobStatus.Active,
+            Creator = null // Explicitly set to null to prevent EF tracking issues
         };
 
         var createdJob = await _jobRepository.CreateAsync(job);
