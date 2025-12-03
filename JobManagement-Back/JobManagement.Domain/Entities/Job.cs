@@ -11,7 +11,7 @@ public class Job : BaseEntity
     public decimal? Salary { get; set; }
     public string Location { get; set; } = string.Empty;
     public JobStatus Status { get; set; } = JobStatus.Active;
-    public DateTime ApplicationDeadline { get; set; }
+    public DateTime? ApplicationDeadline { get; set; }
     
     public virtual ICollection<Applications> Applications { get; set; } = new List<Applications>();
 }
