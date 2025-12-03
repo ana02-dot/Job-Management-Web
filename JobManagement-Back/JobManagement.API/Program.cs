@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using JobManagement.Application.Middlewares;
 using JobManagement.Application.Profiles;
@@ -33,6 +34,9 @@ builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+
+// Clear default claim type mappings to use standard claim types
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 builder.Services.AddAuthentication(options =>
     {
