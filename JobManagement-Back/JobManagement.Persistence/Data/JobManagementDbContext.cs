@@ -27,8 +27,8 @@ public class JobManagementDbContext : DbContext
             // Base Entity Properties
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired(false); // Make optional
-            entity.Property(e => e.UpdatedAt).IsRequired();
+            entity.Property(e => e.CreatedBy).IsRequired(false);
+            entity.Property(e => e.UpdatedAt).IsRequired(false);
             entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
@@ -61,6 +61,13 @@ public class JobManagementDbContext : DbContext
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.PersonalNumber).IsUnique();
             entity.HasIndex(e => e.PhoneNumber).IsUnique();
+            
+            // Self-referencing relationship for User.Creator
+            entity.HasOne(u => u.Creator)
+                .WithMany()
+                .HasForeignKey(u => u.CreatedBy)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
         });
 
         // ===== JOB ENTITY =====
@@ -73,7 +80,7 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.CreatedBy).IsRequired();
-            entity.Property(e => e.UpdatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired(false);
             entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
@@ -84,13 +91,15 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Location).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Status).HasConversion<int>();
             entity.Property(e => e.Salary).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.ApplicationDeadline).IsRequired();
+            entity.Property(e => e.ApplicationDeadline).IsRequired(false);
 
             // Navigation properties configuration
             entity.HasMany(j => j.Applications)
                 .WithOne(a => a.Job)
                 .HasForeignKey(a => a.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            // Job -> User (Creator) relationship is already configured in User entity
         });
 
         // ===== APPLICATIONS ENTITY =====
@@ -103,7 +112,7 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.CreatedBy).IsRequired();
-            entity.Property(e => e.UpdatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired(false);
             entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
@@ -116,12 +125,5 @@ public class JobManagementDbContext : DbContext
             // Unique constraint
             entity.HasIndex(e => new { e.JobId, e.ApplicantId }).IsUnique();
         });
-
-        modelBuilder.Entity<User>()
-            .HasOne(u => u.Creator)
-            .WithMany()
-            .HasForeignKey(u => u.CreatedBy)
-            .OnDelete(DeleteBehavior.NoAction)
-            .IsRequired(false);
     }
 }
