@@ -73,9 +73,26 @@ public class JobsController : ControllerBase
     [ProducesResponseType(403)]
     public async Task<ActionResult<int>> CreateJob([FromBody] CreateJobRequest request)
     {
-        var userId = GetCurrentUserId();
-        var createdJob = await _jobService.CreateJobAsync(request, userId);
-        return CreatedAtAction(nameof(GetJob), new { id = createdJob.Id }, createdJob.Id);
+        try
+        {
+            Log.Information("Creating job. Request: {@Request}", request);
+            var userId = GetCurrentUserId();
+            Log.Information("User ID from token: {UserId}", userId);
+            var createdJob = await _jobService.CreateJobAsync(request, userId);
+            Log.Information("Job created successfully with ID: {JobId}", createdJob.Id);
+            return CreatedAtAction(nameof(GetJob), new { id = createdJob.Id }, createdJob.Id);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to create job. Request: {@Request}", request);
+            var innerException = ex.InnerException;
+            while (innerException != null)
+            {
+                Log.Error("Inner exception: {Message}", innerException.Message);
+                innerException = innerException.InnerException;
+            }
+            return BadRequest(new { error = "Failed to post job", message = ex.Message, innerException = ex.InnerException?.Message });
+        }
     }
 
     private int GetCurrentUserId()
