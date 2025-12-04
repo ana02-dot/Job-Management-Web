@@ -1,3 +1,4 @@
+using System.IdentityModel.Tokens.Jwt;
 using JobManagement.API.Helpers;
 using JobManagement.Application.Interfaces;
 using JobManagement.Application.Services;
@@ -33,6 +34,7 @@ builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -93,6 +95,7 @@ builder.Services.AddHttpClient<PhoneValidationService>();
 var app = builder.Build();
 
 var portOptions = app.Services.GetRequiredService<ServerPortOptions>();
+app.Logger.LogInformation("API listening on http://127.0.0.1:{Port}", portOptions.HttpPort);
 
 // Middleware pipeline
 app.UseSwaggerConfiguration();
