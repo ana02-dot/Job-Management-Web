@@ -26,37 +26,47 @@ export interface CreateApplicationRequest {
   providedIn: 'root'
 })
 export class JobApplicationService {
-  constructor(private http: HttpClient) {}
-
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-    return new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+  constructor(private http: HttpClient) {
   }
 
   getApplicationsByJobId(jobId: number): Observable<Application[]> {
-    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/job/${jobId}`, { headers: this.getHeaders() });
+
+    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/job/${jobId}`);
+
   }
+
 
   getApplicationsByApplicantId(applicantId: number): Observable<Application[]> {
-    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/applicant/${applicantId}`, { headers: this.getHeaders() });
+
+    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/applicant/${applicantId}`);
+
   }
+
 
   getPendingApplications(): Observable<Application[]> {
-    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/pending`, { headers: this.getHeaders() });
+
+    return this.http.get<Application[]>(`${environment.apiUrl}/jobapplication/pending`);
+
   }
+
 
   createApplication(application: CreateApplicationRequest): Observable<any> {
+
     return this.http.post(`${environment.apiUrl}/jobapplication/submit`, application);
+
   }
+
 
   updateApplicationStatus(id: number, status: number): Observable<any> {
-    return this.http.put(`${environment.apiUrl}/jobapplication/${id}/status`, { status }, { headers: this.getHeaders() });
+
+    return this.http.put(`${environment.apiUrl}/jobapplication/${id}/status`, {status});
+
   }
 
+
   deleteApplication(id: number): Observable<any> {
-    return this.http.delete(`${environment.apiUrl}/jobapplication/${id}`, { headers: this.getHeaders() });
+
+    return this.http.delete(`${environment.apiUrl}/jobapplication/${id}`);
+
   }
 }

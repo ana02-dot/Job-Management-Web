@@ -29,37 +29,47 @@ export interface CreateJobRequest {
   providedIn: 'root'
 })
 export class JobService {
-  constructor(private http: HttpClient) {}
-
-  private getHeaders(): HttpHeaders {
-    const token = localStorage.getItem('token');
-    return new HttpHeaders({
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
+  constructor(private http: HttpClient) {
   }
 
   getAllJobs(): Observable<Job[]> {
-    return this.http.get<Job[]>(`${environment.apiUrl}/jobs`, { headers: this.getHeaders() });
+
+    return this.http.get<Job[]>(`${environment.apiUrl}/jobs`);
+
   }
+
 
   getJobsByStatus(status: number): Observable<Job[]> {
+
     return this.http.get<Job[]>(`${environment.apiUrl}/jobs/status/${status}`);
+
   }
+
 
   getJobById(id: number): Observable<Job> {
-    return this.http.get<Job>(`${environment.apiUrl}/jobs/${id}`, { headers: this.getHeaders() });
+
+    return this.http.get<Job>(`${environment.apiUrl}/jobs/${id}`);
+
   }
+
 
   createJob(job: CreateJobRequest): Observable<any> {
-    return this.http.post(`${environment.apiUrl}/jobs`, job, { headers: this.getHeaders() });
+
+    return this.http.post(`${environment.apiUrl}/jobs`, job);
+
   }
+
 
   updateJob(id: number, job: CreateJobRequest): Observable<any> {
-    return this.http.put(`${environment.apiUrl}/jobs/${id}`, job, { headers: this.getHeaders() });
+
+    return this.http.put(`${environment.apiUrl}/jobs/${id}`, job);
+
   }
 
+
   deleteJob(id: number): Observable<any> {
-    return this.http.delete(`${environment.apiUrl}/jobs/${id}`, { headers: this.getHeaders() });
+
+    return this.http.delete(`${environment.apiUrl}/jobs/${id}`);
+
   }
 }
