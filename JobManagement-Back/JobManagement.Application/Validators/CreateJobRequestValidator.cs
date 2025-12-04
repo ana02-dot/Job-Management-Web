@@ -23,8 +23,8 @@ public class CreateJobRequestValidator : AbstractValidator<CreateJobRequest>
             .MaximumLength(200).WithMessage("Location must be at most 200 characters.");
 
         RuleFor(x => x.ApplicationDeadline)
-            .GreaterThan(DateTime.UtcNow).WithMessage("Application deadline must be in the future.");
-
+            .GreaterThan(DateTime.UtcNow).
+            WithMessage("Application deadline must be in the future.");
         RuleFor(x => x.Salary)
             .GreaterThanOrEqualTo(0).When(x => x.Salary.HasValue)
             .WithMessage("Salary must be non-negative when specified.");
