@@ -56,7 +56,7 @@ public class UserService
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         user.CreatedAt = DateTime.UtcNow;
         user.UpdatedAt = DateTime.UtcNow;
-        user.CreatedBy = null;
+        user.CreatedBy = user.CreatedBy;
 
         var createdUser = await _userRepository.CreateAsync(user);
         return createdUser;
