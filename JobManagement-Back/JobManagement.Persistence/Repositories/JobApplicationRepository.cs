@@ -20,7 +20,7 @@ public class JobApplicationRepository : IJobApplicationRepository
                 .Include(ja => ja.Job)
                 .Include(ja => ja.Applicant)
                 .Include(ja => ja.ReviewedBy)
-                .Where(ja => ja.IsDeleted != 0)
+                .Where(ja => ja.IsDeleted == 0)
                 .FirstOrDefaultAsync(ja => ja.Id == id);
         }
 
@@ -29,7 +29,7 @@ public class JobApplicationRepository : IJobApplicationRepository
             return await _context.JobApplications
                 .Include(ja => ja.Applicant)
                 .Include(ja => ja.ReviewedBy)
-                .Where(ja => ja.IsDeleted != 0 && ja.JobId == jobId)
+                .Where(ja => ja.IsDeleted == 0 && ja.JobId == jobId)
                 .ToListAsync();
         }
 
@@ -38,7 +38,7 @@ public class JobApplicationRepository : IJobApplicationRepository
             return await _context.JobApplications
                 .Include(ja => ja.Job)
                 .Include(ja => ja.ReviewedBy)
-                .Where(ja => ja.IsDeleted != 0 && ja.ApplicantId == applicantId)
+                .Where(ja => ja.IsDeleted == 0 && ja.ApplicantId == applicantId)
                 .ToListAsync();
         }
 
@@ -47,7 +47,7 @@ public class JobApplicationRepository : IJobApplicationRepository
             return await _context.JobApplications
                 .Include(ja => ja.Job)
                 .Include(ja => ja.Applicant)
-                .Where(ja => ja.IsDeleted != 0 && ja.Status == status)
+                .Where(ja => ja.IsDeleted == 0 && ja.Status == status)
                 .ToListAsync();
         }
 
@@ -78,7 +78,7 @@ public class JobApplicationRepository : IJobApplicationRepository
         public async Task<bool> HasUserAppliedAsync(int jobId, int userId)
         {
             return await _context.JobApplications
-                .Where(ja => ja.IsDeleted != 0)
+                .Where(ja => ja.IsDeleted == 0)
                 .AnyAsync(ja => ja.JobId == jobId && ja.ApplicantId == userId);
         }
 }

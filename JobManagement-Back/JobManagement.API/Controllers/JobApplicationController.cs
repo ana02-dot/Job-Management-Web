@@ -37,7 +37,7 @@ public class JobApplicationController : ControllerBase
         var application = new Applications
         {
             JobId = request.JobId,
-            Resume = request.Resume ?? string.Empty
+            Resume = request.Resume ?? string.Empty,
         };
         var applicationId = await _jobApplicationService.SubmitApplicationAsync(application, request.ApplicantId);
         Log.Information("Successfully submitted application {ApplicationId} for job {JobId}", applicationId, request.JobId);
