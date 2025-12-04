@@ -10,5 +10,5 @@ public interface IJobService
     Task<Job?> GetJobByIdAsync(int id);
     Task<List<Job>> GetAllJobsAsync();
     Task<List<Job>> GetJobsByStatusAsync(JobStatus status);
-    Task UpdateJobAsync(Job job, int updaterId);
-}
+    Task UpdateJobAsync(int id, CreateJobRequest request, int updaterId);
+    Task DeleteJobAsync(int id, int deleterId);}
