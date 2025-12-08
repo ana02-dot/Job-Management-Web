@@ -21,6 +21,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'apply/:id',
+    loadComponent: () => import('./components/apply-job/apply-job.component').then(m => m.ApplyJobComponent),
+    canActivate: [authGuard]
+  },
+  {
     path: '**',
     redirectTo: ''
   }

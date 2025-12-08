@@ -13,7 +13,13 @@ export interface Application {
   reviewedByUserId?: number;
   reviewedAt?: string;
   job?: any;
-  applicant?: any;
+  applicant?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber?: string;
+  };
 }
 
 export interface CreateApplicationRequest {

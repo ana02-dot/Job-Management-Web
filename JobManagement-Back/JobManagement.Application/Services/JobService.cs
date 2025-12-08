@@ -27,6 +27,7 @@ public class JobService : IJobService
         if (creator.Role != UserRole.HR && creator.Role != UserRole.Admin)
             throw new UnauthorizedAccessException("Only HR and Admin users can create jobs");
 
+        // Create job and set CreatedBy as foreign key to User.Id
         var job = new Job
         {
             Title = request.Title,
@@ -35,12 +36,14 @@ public class JobService : IJobService
             Salary = request.Salary,
             Location = request.Location,
             ApplicationDeadline = request.ApplicationDeadline,
-            CreatedBy = createdBy,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
             Status = JobStatus.Active,
-            Creator = null
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
+        
+        // Explicitly set CreatedBy as the foreign key to User.Id (FK: Jobs.CreatedBy -> Users.Id)
+        // Do NOT set the Creator navigation property - let EF manage it through the FK
+        job.CreatedBy = createdBy;
 
         var createdJob = await _jobRepository.CreateAsync(job);
         return createdJob;
@@ -49,10 +52,20 @@ public class JobService : IJobService
     public async Task<Job?> GetJobByIdAsync(int id) =>
          await _jobRepository.GetByIdAsync(id);
 
-    public async Task<List<Job>> GetAllJobsAsync()
+    public async Task<List<Job>> GetAllJobsAsync(int? userId = null)
     {
-        var returnedJobs = await _jobRepository.GetAllAsync();
-        return returnedJobs.ToList();
+        // If userId is provided, filter by creator (for HR users)
+        // If userId is null, return all jobs (for Admin users)
+        if (userId.HasValue)
+        {
+            var returnedJobs = await _jobRepository.GetByCreatorAsync(userId.Value);
+            return returnedJobs.ToList();
+        }
+        else
+        {
+            var returnedJobs = await _jobRepository.GetAllAsync();
+            return returnedJobs.ToList();
+        }
     }
 
     public async Task<List<Job>> GetJobsByStatusAsync(JobStatus status) =>

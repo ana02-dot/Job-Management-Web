@@ -238,32 +238,54 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
         <!-- Applications Modal -->
         <div *ngIf="showApplications"
+             (click)="closeApplicationsModal()"
              class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div (click)="$event.stopPropagation()" class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
               <h3 class="text-xl font-bold text-slate-900">Applications</h3>
               <button
-                (click)="showApplications = false"
+                (click)="closeApplicationsModal()"
                 class="text-slate-400 hover:text-slate-600">
                 <lucide-x-circle class="w-6 h-6" />
               </button>
             </div>
             <div class="p-6">
+              <div class="mb-4 pb-4 border-b border-slate-200">
+                <div class="text-lg font-semibold text-slate-900">
+                  Total Applications: <span class="text-blue-600">{{ applications.length }}</span>
+                </div>
+              </div>
               <div *ngIf="applications.length === 0" class="text-center py-8 text-slate-600">
                 No applications received yet.
               </div>
-              <div *ngFor="let app of applications" class="border-b border-slate-200 pb-4 mb-4 last:border-0">
-                <div class="flex items-start justify-between mb-2">
-                  <div>
-                    <div class="font-semibold text-slate-900">Application #{{ app.id }}</div>
-                    <div class="text-sm text-slate-600">Applied: {{ app.appliedAt | date:'medium' }}</div>
-                    <div class="text-sm text-slate-600 mt-1">Applicant ID: {{ app.applicantId }}</div>
+              <div *ngFor="let app of applications" 
+                   class="border border-slate-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow bg-white">
+                <div class="flex items-start justify-between mb-3">
+                  <div class="flex-1">
+                    <div class="font-semibold text-slate-900 mb-2">Application #{{ app.id }}</div>
+                    <div *ngIf="app.applicant" class="space-y-1">
+                      <div class="text-sm text-slate-700">
+                        <strong>Applicant:</strong> {{ app.applicant.firstName }} {{ app.applicant.lastName }}
+                      </div>
+                      <div class="text-sm text-slate-600">
+                        <strong>Email:</strong> {{ app.applicant.email }}
+                      </div>
+                      <div *ngIf="app.applicant.phoneNumber" class="text-sm text-slate-600">
+                        <strong>Phone:</strong> {{ app.applicant.phoneNumber }}
+                      </div>
+                    </div>
+                    <div *ngIf="!app.applicant" class="text-sm text-slate-600">
+                      Applicant ID: {{ app.applicantId }}
+                    </div>
+                    <div class="text-sm text-slate-500 mt-2">
+                      Applied: {{ app.appliedAt | date:'medium' }}
+                    </div>
                   </div>
-                  <span [class]="getApplicationStatusClass(app.status)" class="px-3 py-1 rounded-full text-sm font-medium">
+                  <span [class]="getApplicationStatusClass(app.status)" class="px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-4">
                     {{ getApplicationStatusText(app.status) }}
                   </span>
                 </div>
-                <div *ngIf="app.resume" class="mt-2 text-sm text-slate-600">
+                <div *ngIf="app.resume" class="mt-3 pt-3 border-t border-slate-100 text-sm text-slate-600">
                   <strong>Resume:</strong> {{ app.resume }}
                 </div>
               </div>
@@ -329,14 +351,31 @@ export class CompanyDashboardComponent implements OnInit {
 
   loadMyJobs() {
     this.isLoadingJobs = true;
+    const user = this.authService.getCurrentUser();
+    console.log('🔍 Loading jobs for user:', user);
+    console.log('🔍 User ID:', user?.id);
+    console.log('🔍 User Role:', user?.role);
+    
     this.jobService.getAllJobs().subscribe({
       next: (jobs: Job[]) => {
+        console.log('✅ Received jobs from API:', jobs.length, 'jobs');
+        console.log('📋 Jobs details:', jobs.map(j => ({ id: j.id, title: j.title, createdBy: (j as any).createdBy })));
         this.myJobs = jobs;
         this.isLoadingJobs = false;
-        console.log('Loaded jobs:', jobs);
+        
+        // Log which jobs belong to current user
+        if (user?.id) {
+          const myJobs = jobs.filter(j => (j as any).createdBy === user.id);
+          const otherJobs = jobs.filter(j => (j as any).createdBy !== user.id);
+          console.log('👤 My jobs (createdBy=' + user.id + '):', myJobs.length);
+          console.log('👥 Other users\' jobs:', otherJobs.length);
+          if (otherJobs.length > 0) {
+            console.warn('⚠️ WARNING: Showing jobs from other users!', otherJobs.map(j => ({ id: j.id, title: j.title, createdBy: (j as any).createdBy })));
+          }
+        }
       },
       error: (error: any) => {
-        console.error('Error loading jobs:', error);
+        console.error('❌ Error loading jobs:', error);
         this.errorMessage = 'Failed to load jobs: ' + (error.error?.message || error.message);
         this.isLoadingJobs = false;
       }
@@ -361,7 +400,9 @@ export class CompanyDashboardComponent implements OnInit {
       requirements: this.newJob.requirements.trim(),
       location: this.newJob.location.trim(),
       salary: this.newJob.salary || undefined,
-      applicationDeadline: this.newJob.applicationDeadline
+      applicationDeadline: this.newJob.applicationDeadline && this.newJob.applicationDeadline.trim() 
+        ? new Date(this.newJob.applicationDeadline).toISOString() 
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Default to 30 days from now
     };
 
     console.log('Creating job with data:', jobData);
@@ -394,7 +435,23 @@ export class CompanyDashboardComponent implements OnInit {
 
         let message = 'Failed to post job. ';
 
-        if (error.error?.message) {
+        // Handle validation errors
+        if (error.error?.errors) {
+          const validationErrors = error.error.errors;
+          const errorMessages: string[] = [];
+          
+          Object.keys(validationErrors).forEach(key => {
+            if (Array.isArray(validationErrors[key])) {
+              errorMessages.push(...validationErrors[key]);
+            } else {
+              errorMessages.push(validationErrors[key]);
+            }
+          });
+          
+          if (errorMessages.length > 0) {
+            message += '\n\nValidation errors:\n' + errorMessages.join('\n');
+          }
+        } else if (error.error?.message) {
           message += error.error.message;
         } else if (error.message) {
           message += error.message;
@@ -411,6 +468,8 @@ export class CompanyDashboardComponent implements OnInit {
           message += '\n\nYou do not have permission to create jobs. Make sure you are logged in as HR.';
         } else if (error.status === 0) {
           message += '\n\nCannot connect to server. Please check if the backend is running at http://localhost:5265';
+        } else if (error.status === 400) {
+          message += '\n\nPlease check that all required fields are filled and the application deadline is in the future.';
         }
 
         this.errorMessage = message;
@@ -431,6 +490,10 @@ export class CompanyDashboardComponent implements OnInit {
         this.applications = [];
       }
     });
+  }
+
+  closeApplicationsModal() {
+    this.showApplications = false;
   }
 
   getActiveJobsCount(): number {

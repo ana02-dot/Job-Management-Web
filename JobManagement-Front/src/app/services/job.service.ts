@@ -14,6 +14,7 @@ export interface Job {
   applicationDeadline: string;
   createdAt?: string;
   updatedAt?: string;
+  createdBy?: number; // ID of the user who created the job
 }
 
 export interface CreateJobRequest {
@@ -33,9 +34,7 @@ export class JobService {
   }
 
   getAllJobs(): Observable<Job[]> {
-
     return this.http.get<Job[]>(`${environment.apiUrl}/jobs`);
-
   }
 
 

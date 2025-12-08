@@ -138,11 +138,11 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
               </div>
 
               <button
-                (click)="applyToJob(job)"
-                [disabled]="hasApplied(job.id) || isApplying"
+                (click)="navigateToApply(job.id)"
+                [disabled]="hasApplied(job.id)"
                 class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <lucide-send class="w-4 h-4" />
-                <span *ngIf="!hasApplied(job.id)">{{ isApplying ? 'Applying...' : 'Apply Now' }}</span>
+                <span *ngIf="!hasApplied(job.id)">Apply Now</span>
                 <span *ngIf="hasApplied(job.id)">Already Applied</span>
               </button>
             </div>
@@ -252,32 +252,11 @@ export class JobSeekerDashboardComponent implements OnInit {
     });
   }
 
-  applyToJob(job: Job) {
-    const user = this.authService.getCurrentUser();
-    if (!user) {
-      this.router.navigate(['/auth']);
+  navigateToApply(jobId: number) {
+    if (this.hasApplied(jobId)) {
       return;
     }
-
-    this.isApplying = true;
-    const application = {
-      jobId: job.id,
-      applicantId: user.id,
-      resume: 'Resume submitted via web application'
-    };
-
-    this.jobApplicationService.createApplication(application).subscribe({
-      next: () => {
-        alert('Application submitted successfully!');
-        this.loadMyApplications();
-        this.isApplying = false;
-      },
-      error: (error: any) => {
-        console.error('Error submitting application:', error);
-        alert(error.error?.message || 'Failed to submit application');
-        this.isApplying = false;
-      }
-    });
+    this.router.navigate(['/apply', jobId]);
   }
 
   hasApplied(jobId: number): boolean {

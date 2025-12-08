@@ -75,22 +75,17 @@ export class AuthService {
       'Content-Type': 'application/json'
     });
 
-    console.log('Login request URL:', `${environment.apiUrl}/user/login`);
-    console.log('Login credentials:', { email: credentials.email });
-
     return this.http.post<LoginResponse>(
         `${environment.apiUrl}/auth/login`,
         credentials,
         { headers }
     ).pipe(
         tap(response => {
-          console.log('Login response:', response);
           if (response.token) {
             localStorage.setItem('token', response.token);
 
-            // Decode JWT token to extract user info
+            // Decode JWT token to extract user info (don't log token contents for security)
             const tokenPayload = this.decodeToken(response.token);
-            console.log('Token payload:', tokenPayload);
 
             const userId = this.getClaimValue(
                 tokenPayload,
@@ -102,11 +97,12 @@ export class AuthService {
                 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
                 'email'
             ) || response.email;
+            // Try multiple claim types for role (enum name or numeric value)
             const userRole = this.getClaimValue(
                 tokenPayload,
-                'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role',
+                'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
                 'role'
-            );
+            ) || this.getClaimValue(tokenPayload, 'role_value', 'role_value');
 
             const user: User = {
               id: parseInt(userId) || 0,
@@ -127,8 +123,7 @@ export class AuthService {
                 this.currentUserSubject.next(user);
               },
               error: (error) => {
-                console.error('Error fetching user info:', error);
-                // If fetch fails, still save what we have
+                // If fetch fails, still save what we have (don't log sensitive error details)
                 localStorage.setItem('user', JSON.stringify(user));
                 this.currentUserSubject.next(user);
               }

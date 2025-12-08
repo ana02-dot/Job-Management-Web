@@ -34,7 +34,10 @@ builder.Services.AddAutoMapper(typeof(UserProfile));
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+
+// Clear default claim type mappings to preserve original claim types from JWT
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -55,7 +58,10 @@ builder.Services.AddAuthentication(options =>
             ValidIssuer = jwtSettings?.Issuer,
             ValidAudience = jwtSettings?.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SecretKey ?? "")),
-            ClockSkew = TimeSpan.Zero
+            ClockSkew = TimeSpan.Zero,
+            // Don't map claim types - preserve original claim types from token
+            NameClaimType = ClaimTypes.NameIdentifier,
+            RoleClaimType = ClaimTypes.Role
         };
     });
         builder.Services.AddAuthorization();
