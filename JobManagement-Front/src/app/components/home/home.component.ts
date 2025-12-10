@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
@@ -9,7 +10,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, LucideAngularModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   template: `
     <div class="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -73,15 +74,46 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             </div>
           </div>
 
-          <!-- Featured Jobs Section -->
-          <div *ngIf="featuredJobs.length > 0" class="mt-16">
+          <!-- All Jobs Section -->
+          <div class="mt-16">
             <div class="mb-8">
-              <h2 class="text-3xl font-bold mb-2 text-slate-900">Active Job Openings</h2>
-              <p class="text-slate-600">Explore our latest job opportunities</p>
+              <h2 class="text-3xl font-bold mb-2 text-slate-900">All Job Openings</h2>
+              <p class="text-slate-600 mb-6">Explore our latest job opportunities</p>
+              
+              <!-- Search/Filter Input -->
+              <div class="max-w-md">
+                <div class="relative">
+                  <lucide-search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    [(ngModel)]="searchTitle"
+                    (ngModelChange)="filterJobs()"
+                    placeholder="Search by job title..."
+                    class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900">
+                  <button
+                    *ngIf="searchTitle"
+                    (click)="clearFilter()"
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <lucide-x class="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div *ngFor="let job of featuredJobs"
+            <div *ngIf="isLoading" class="text-center py-16">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p class="text-slate-600 mt-4">Loading jobs...</p>
+            </div>
+
+            <div *ngIf="!isLoading && filteredJobs.length === 0" class="text-center py-16 text-slate-600">
+              <lucide-briefcase class="w-16 h-16 mx-auto mb-4 text-slate-300" />
+              <p class="text-lg font-medium mb-2">No jobs found</p>
+              <p *ngIf="searchTitle" class="text-sm">Try adjusting your search criteria</p>
+              <p *ngIf="!searchTitle" class="text-sm">No active jobs available at the moment</p>
+            </div>
+
+            <div *ngIf="!isLoading && filteredJobs.length > 0" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div *ngFor="let job of filteredJobs"
                    (click)="onGetStarted()"
                    class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-all cursor-pointer border border-slate-200 hover:border-blue-300">
                 <h3 class="text-xl font-semibold mb-2 text-slate-900">{{ job.title }}</h3>
@@ -110,10 +142,6 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             </div>
           </div>
 
-          <div *ngIf="isLoading" class="text-center py-16">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p class="text-slate-600 mt-4">Loading jobs...</p>
-          </div>
         </div>
       </div>
     </div>
@@ -132,7 +160,9 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
   `]
 })
 export class HomeComponent implements OnInit {
-  featuredJobs: Job[] = [];
+  allJobs: Job[] = [];
+  filteredJobs: Job[] = [];
+  searchTitle: string = '';
   isLoading = false;
   stats = {
     activeJobs: 0
@@ -145,22 +175,41 @@ export class HomeComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    this.loadFeaturedJobs();
+    this.loadAllJobs();
   }
 
-  loadFeaturedJobs() {
+  loadAllJobs() {
     this.isLoading = true;
     this.jobService.getJobsByStatus(0).subscribe({ // 0 = Active
       next: (jobs: Job[]) => {
-        this.featuredJobs = jobs.slice(0, 6); // Show first 6 active jobs
+        this.allJobs = jobs;
+        this.filteredJobs = jobs;
         this.stats.activeJobs = jobs.length;
         this.isLoading = false;
       },
       error: () => {
-        this.featuredJobs = [];
+        this.allJobs = [];
+        this.filteredJobs = [];
         this.isLoading = false;
       }
     });
+  }
+
+  filterJobs() {
+    if (!this.searchTitle || this.searchTitle.trim() === '') {
+      this.filteredJobs = this.allJobs;
+      return;
+    }
+
+    const searchTerm = this.searchTitle.toLowerCase().trim();
+    this.filteredJobs = this.allJobs.filter(job =>
+      job.title.toLowerCase().includes(searchTerm)
+    );
+  }
+
+  clearFilter() {
+    this.searchTitle = '';
+    this.filteredJobs = this.allJobs;
   }
 
   onGetStarted() {
