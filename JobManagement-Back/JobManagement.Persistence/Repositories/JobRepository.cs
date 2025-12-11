@@ -34,10 +34,11 @@ public class JobRepository : IJobRepository
 
     public async Task<List<Job>> GetByCreatorAsync(int createdBy)
     {
-        return await _context.Jobs
+        var jobs = await _context.Jobs
             .Include(j => j.Creator)
-            .Where(j => j.CreatedBy == createdBy && j.IsDeleted != 1)
+            .Where(j => j.CreatedBy.HasValue && j.CreatedBy.Value == createdBy && j.IsDeleted != 1)
             .ToListAsync();
+        return jobs;
     }
 
     public async Task<List<Job>> GetByStatusAsync(JobStatus status)
@@ -49,16 +50,13 @@ public class JobRepository : IJobRepository
 
     public async Task<Job> CreateAsync(Job job)
     {
-        // Ensure CreatedBy foreign key is set to User.Id
         if (!job.CreatedBy.HasValue || job.CreatedBy.Value == 0)
         {
             throw new InvalidOperationException($"Cannot create job: CreatedBy (FK to User.Id) must be set to a valid user ID. Current value: {job.CreatedBy}");
         }
         
-        // Add job to context - CreatedBy will be saved as foreign key to Users.Id
         _context.Jobs.Add(job);
         
-        // Explicitly mark CreatedBy as modified to ensure EF saves it as the foreign key
         _context.Entry(job).Property(j => j.CreatedBy).IsModified = true;
         
         await _context.SaveChangesAsync();
