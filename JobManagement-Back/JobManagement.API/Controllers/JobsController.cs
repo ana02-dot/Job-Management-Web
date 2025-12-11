@@ -1,4 +1,6 @@
-﻿using JobManagement.Application.Services;
+﻿using System.IdentityModel.Tokens.Jwt;
+using JobManagement.Application.Services;
+using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,76 +36,56 @@ public class JobsController : ControllerBase
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         var resolvedRole = GetUserRoleFromClaims();
         
-        // Don't log sensitive claim values - only log role resolution result
         Log.Information("GetAllJobs - User ID: {UserId}, ResolvedRole: {ResolvedRole}", userIdClaim, resolvedRole);
         
-        if (!IsAdminOrHR())
-        {
-            Log.Warning("User {UserId} with resolved role {ResolvedRole} attempted to access GetAllJobs (unauthorized)", 
-                userIdClaim, resolvedRole);
-            return Forbid("Only Admin and HR users can view jobs");
-        }
-        
-        // Admin users see all jobs, HR users see only their own jobs
-        int? userId = null;
-        
-        // Determine roles via resolved role
+        // Allow Admin, HR, and Applicant users
         if (resolvedRole == null)
         {
-            Log.Error("GetAllJobs: Could not resolve user role for user {UserId}", userIdClaim);
-            return Forbid("Unable to determine user role");
+            return StatusCode(403, new { Message = "Unable to determine user role" });
+        }
+        
+        if (resolvedRole != UserRole.Admin && resolvedRole != UserRole.HR && resolvedRole != UserRole.Applicant)
+        {
+            return StatusCode(403, new { Message = "Only Admin, HR, and Applicant users can view jobs" });
         }
         
         var isAdmin = resolvedRole == UserRole.Admin;
         var isHR = resolvedRole == UserRole.HR;
+        var isApplicant = resolvedRole == UserRole.Applicant;
         
-        // Always filter by user ID unless user is Admin
-        // This ensures HR users only see their own jobs
-        if (!isAdmin)
+        // Extract user ID
+        if (!int.TryParse(userIdClaim, out int currentUserId))
         {
-            if (int.TryParse(userIdClaim, out int currentUserId))
-            {
-                userId = currentUserId;
-                Log.Information("{Role} user {UserId} - Filtering jobs by CreatedBy={CreatedBy}", 
-                    isHR ? "HR" : "Non-admin", currentUserId, currentUserId);
-            }
-            else
-            {
-                Log.Error("Could not parse userId from claim: '{UserIdClaim}'", userIdClaim);
-                return Forbid("Invalid user authentication");
-            }
+            return StatusCode(403, new { Message = "Invalid user authentication" });
+        }
+        
+        // For Admin and Applicant: return all jobs, For HR: return only their jobs
+        List<Job> jobs;
+        
+        if (isAdmin || isApplicant)
+        {
+            Log.Information("{Role} user {UserId} - returning all jobs", resolvedRole, currentUserId);
+            jobs = await _jobService.GetAllJobsAsync(null);
         }
         else
         {
-            Log.Information("Admin user - showing all jobs (no filter)");
-        }
-        
-        var jobs = await _jobService.GetAllJobsAsync(userId);
-        
-        // Verify filtering worked - log job CreatedBy values
-        Log.Information("Retrieved {JobCount} jobs for user {UserId} (filter userId: {FilterUserId})", 
-            jobs.Count, userIdClaim, userId?.ToString() ?? "null");
-        
-        if (userId.HasValue && jobs.Any())
-        {
-            var jobsNotOwned = jobs.Where(j => j.CreatedBy != userId.Value).ToList();
-            if (jobsNotOwned.Any())
+            // HR users: ALWAYS filter by their user ID
+            Log.Information("HR user {UserId} - filtering jobs by CreatedBy={CreatedBy}", currentUserId, currentUserId);
+            jobs = await _jobService.GetAllJobsAsync(currentUserId);
+            
+            // MANDATORY FINAL FILTER: Ensure ONLY jobs created by this HR user are returned
+            // This is non-negotiable - filter happens regardless of what service returned
+            var beforeCount = jobs.Count;
+            jobs = jobs.Where(j => j.CreatedBy.HasValue && j.CreatedBy.Value == currentUserId).ToList();
+            
+            if (beforeCount != jobs.Count)
             {
-                Log.Warning("⚠️ Found {Count} jobs not owned by user {UserId}: {JobIds}", 
-                    jobsNotOwned.Count, userId.Value, string.Join(", ", jobsNotOwned.Select(j => $"JobId:{j.Id}, CreatedBy:{j.CreatedBy}")));
+                Log.Warning("Filtered out {RemovedCount} jobs not owned by HR user {UserId}", 
+                    beforeCount - jobs.Count, currentUserId);
             }
-        }
-        
-        // Log job details for debugging (first 5 jobs)
-        int logCount = 0;
-        foreach (var job in jobs.Take(5))
-        {
-            Log.Information("Job ID: {JobId}, Title: {Title}, CreatedBy: {CreatedBy}", job.Id, job.Title, job.CreatedBy);
-            logCount++;
-        }
-        if (jobs.Count > 5)
-        {
-            Log.Information("... and {RemainingCount} more jobs", jobs.Count - 5);
+            
+            Log.Information("HR user {UserId} will receive {JobCount} jobs (all with CreatedBy={CreatedBy})", 
+                currentUserId, jobs.Count, currentUserId);
         }
         
         return Ok(jobs);
@@ -134,22 +116,83 @@ public class JobsController : ControllerBase
     /// <response code="404">If the job is not found</response>
 
     [HttpGet("{id}")]
-    [AllowAnonymous] // Allow anyone to view job details (needed for applicants)
+    [AllowAnonymous] // Allow anonymous for applicants, but check HR permissions if authenticated
     [ProducesResponseType(typeof(Job), 200)]
     [ProducesResponseType(404)]
+    [ProducesResponseType(403)]
     public async Task<ActionResult<Job>> GetJob(int id)
     {
-        Log.Information("Getting job with ID: {JobId}", id);
-        
-        var job = await _jobService.GetJobByIdAsync(id);
-        if (job == null)
+        try
         {
-            Log.Warning("Job with ID {JobId} not found", id);
-            return NotFound(new { Message = $"Job with ID {id} not found" });
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            UserRole? resolvedRole = null;
+            
+            // Only try to resolve role if user is authenticated
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                try
+                {
+                    resolvedRole = GetUserRoleFromClaims();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "GetJob - Error resolving role, but allowing access anyway (AllowAnonymous endpoint)");
+                    // Don't fail - this is an AllowAnonymous endpoint
+                }
+            }
+            
+            Log.Information("GetJob - User ID: {UserId}, JobId: {JobId}, ResolvedRole: {ResolvedRole}, IsAuthenticated: {IsAuthenticated}", 
+                userIdClaim ?? "Anonymous", id, resolvedRole?.ToString() ?? "null", User.Identity?.IsAuthenticated ?? false);
+            
+            // Log all claims for debugging
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                var allClaims = string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"));
+                Log.Information("GetJob - All claims for authenticated user: {Claims}", allClaims);
+            }
+            
+            var job = await _jobService.GetJobByIdAsync(id);
+            if (job == null)
+            {
+                Log.Warning("Job with ID {JobId} not found", id);
+                return NotFound(new { Message = $"Job with ID {id} not found" });
+            }
+            
+            // Only restrict HR users - everyone else (Admin, Applicant, Anonymous) can view any job
+            if (resolvedRole == UserRole.HR)
+            {
+                Log.Information("GetJob - User is HR, checking job ownership");
+                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int currentUserId))
+                {
+                    Log.Warning("Invalid user ID claim for HR user");
+                    return Unauthorized(new { Message = "Invalid user authentication" });
+                }
+                
+                // HR users can only view jobs they created
+                if (!job.CreatedBy.HasValue || job.CreatedBy.Value != currentUserId)
+                {
+                    Log.Warning("HR user {UserId} attempted to view job {JobId} created by {CreatedBy}", 
+                        currentUserId, id, job.CreatedBy);
+                    return StatusCode(403, new { Message = "You can only view jobs you created" });
+                }
+                Log.Information("GetJob - HR user {UserId} verified ownership of job {JobId}", currentUserId, id);
+            }
+            else
+            {
+                // Admin, Applicant, or Anonymous - allow access
+                Log.Information("GetJob - User role is {Role} (or null/anonymous) - allowing access to job {JobId}", 
+                    resolvedRole?.ToString() ?? "Anonymous", id);
+            }
+            
+            Log.Information("Successfully retrieved job {JobId}: {JobTitle} for user {UserId} (Role: {Role})", 
+                id, job.Title, userIdClaim ?? "Anonymous", resolvedRole?.ToString() ?? "Anonymous");
+            return Ok(job);
         }
-        
-        Log.Information("Successfully retrieved job {JobId}: {JobTitle}", id, job.Title);
-        return Ok(job);
+        catch (Exception ex)
+        {
+            Log.Error(ex, "GetJob - Unexpected error retrieving job {JobId}", id);
+            return StatusCode(500, new { Message = "An error occurred while retrieving the job details." });
+        }
     }
     
     /// <summary>
