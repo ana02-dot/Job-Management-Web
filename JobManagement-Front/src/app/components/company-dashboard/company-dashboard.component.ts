@@ -345,6 +345,17 @@ export class CompanyDashboardComponent implements OnInit {
       return;
     }
 
+    // Verify token is still valid
+    const token = localStorage.getItem('token');
+    if (!token) {
+      this.errorMessage = 'Your session has expired. Please login again.';
+      setTimeout(() => {
+        this.authService.logout();
+        this.router.navigate(['/auth']);
+      }, 2000);
+      return;
+    }
+
     this.companyName = `${user.firstName} ${user.lastName}` || user.email;
     this.loadMyJobs();
   }
@@ -360,19 +371,70 @@ export class CompanyDashboardComponent implements OnInit {
       next: (jobs: Job[]) => {
         console.log('✅ Received jobs from API:', jobs.length, 'jobs');
         console.log('📋 Jobs details:', jobs.map(j => ({ id: j.id, title: j.title, createdBy: (j as any).createdBy })));
+        
+        // CRITICAL: Client-side filter for HR users - only show jobs created by current user
+        // This is a safety net in case backend filtering fails
+        if (user?.id && user?.role === 1) { // Role 1 = HR
+          const originalCount = jobs.length;
+          const userId = Number(user.id); // Ensure it's a number
+          const originalJobs = [...jobs]; // Keep a copy for logging
+          
+          // Filter jobs - handle both camelCase (createdBy) and PascalCase (CreatedBy)
+          jobs = jobs.filter(j => {
+            const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
+            const jobCreatedBy = Number(createdBy);
+            return !isNaN(jobCreatedBy) && jobCreatedBy === userId;
+          });
+          
+          console.log(`🔒 HR USER FILTER: Filtered from ${originalCount} to ${jobs.length} jobs (user ID: ${userId}, type: ${typeof userId})`);
+          console.log(`📊 Filtered Jobs CreatedBy values:`, jobs.map(j => ({ 
+            id: j.id, 
+            createdBy: (j as any).createdBy ?? (j as any).CreatedBy, 
+            type: typeof ((j as any).createdBy ?? (j as any).CreatedBy) 
+          })));
+          
+          if (originalCount !== jobs.length) {
+            const removedJobs = originalJobs.filter(j => {
+              const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
+              const jobCreatedBy = Number(createdBy);
+              return isNaN(jobCreatedBy) || jobCreatedBy !== userId;
+            });
+            console.warn(`⚠️ Backend returned ${originalCount - jobs.length} jobs from other users! Filtered them out.`);
+            console.warn('Removed jobs:', removedJobs.map(j => ({ 
+              id: j.id, 
+              title: j.title, 
+              createdBy: (j as any).createdBy ?? (j as any).CreatedBy 
+            })));
+          }
+        }
+        
         this.myJobs = jobs;
         this.isLoadingJobs = false;
         
         // Log which jobs belong to current user
         if (user?.id) {
-          const myJobs = jobs.filter(j => (j as any).createdBy === user.id);
-          const otherJobs = jobs.filter(j => (j as any).createdBy !== user.id);
+          // Check both camelCase and PascalCase field names
+          const myJobs = jobs.filter(j => {
+            const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
+            return createdBy === user.id;
+          });
+          const otherJobs = jobs.filter(j => {
+            const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
+            return createdBy !== user.id;
+          });
           console.log('👤 My jobs (createdBy=' + user.id + '):', myJobs.length);
           console.log('👥 Other users\' jobs:', otherJobs.length);
           if (otherJobs.length > 0) {
-            console.warn('⚠️ WARNING: Showing jobs from other users!', otherJobs.map(j => ({ id: j.id, title: j.title, createdBy: (j as any).createdBy })));
+            console.warn('⚠️ WARNING: Showing jobs from other users!', otherJobs.map(j => ({ 
+              id: j.id, 
+              title: j.title, 
+              createdBy: (j as any).createdBy ?? (j as any).CreatedBy 
+            })));
           }
         }
+        
+        // Load application counts for all jobs
+        this.loadApplicationStats();
       },
       error: (error: any) => {
         console.error('❌ Error loading jobs:', error);
@@ -479,17 +541,169 @@ export class CompanyDashboardComponent implements OnInit {
   }
 
   viewApplications(jobId: number) {
+    const user = this.authService.getCurrentUser();
+    if (!user || user.role !== 1) {
+      this.errorMessage = 'You must be logged in as HR to view applications.';
+      return;
+    }
+
+    // Verify the job belongs to the current user before attempting to load applications
+    const job = this.myJobs.find(j => j.id === jobId);
+    if (!job) {
+      this.errorMessage = 'Job not found in your job list.';
+      return;
+    }
+
+    const userId = Number(user.id);
+    const jobCreatedByRaw = (job as any).createdBy ?? (job as any).CreatedBy;
+    const jobCreatedBy = jobCreatedByRaw != null ? Number(jobCreatedByRaw) : null;
+    
+    console.log('🔍 ViewApplications Debug:', {
+      jobId,
+      userId,
+      userRole: user.role,
+      jobCreatedByRaw,
+      jobCreatedBy,
+      jobTitle: job.title,
+      comparison: jobCreatedBy === userId
+    });
+    
+    if (jobCreatedBy === null || isNaN(jobCreatedBy) || jobCreatedBy !== userId) {
+      console.error('❌ Job ownership check failed:', {
+        jobId,
+        userId,
+        jobCreatedBy,
+        jobCreatedByRaw,
+        job: job
+      });
+      this.errorMessage = `Job ownership verification failed. Your ID: ${userId}, Job CreatedBy: ${jobCreatedByRaw}. Please contact support if this job belongs to you.`;
+      return;
+    }
+
     this.selectedJobId = jobId;
     this.showApplications = true;
+    this.errorMessage = ''; // Clear any previous errors
+    
+    console.log('✅ Job ownership verified, calling API for job:', jobId);
+    
     this.jobApplicationService.getApplicationsByJobId(jobId).subscribe({
       next: (apps: Application[]) => {
+        console.log('✅ Applications loaded successfully:', apps.length);
         this.applications = apps;
+        this.updateApplicationStats();
       },
       error: (error: any) => {
-        console.error('Error loading applications:', error);
+        console.error('❌ Error loading applications:', error);
+        const status = error?.status ?? error?.originalError?.status ?? 0;
+        let message = 'Failed to load applications. ';
+        
+        // Try to extract server message
+        const serverMessage = error?.originalError?.error?.message || 
+                             error?.error?.message || 
+                             error?.message;
+        
+        if (status === 403) {
+          if (serverMessage) {
+            message = serverMessage;
+          } else {
+            message = `You do not have permission to view applications for this job. ` +
+                     `This might be due to:\n` +
+                     `- Your session expired (try logging out and back in)\n` +
+                     `- The job doesn't belong to your account\n` +
+                     `- Authorization token issue\n\n` +
+                     `Your User ID: ${userId}, Job ID: ${jobId}, Job CreatedBy: ${jobCreatedBy}`;
+          }
+        } else if (status === 404) {
+          message = 'Job not found.';
+        } else if (status === 401) {
+          message = 'Your session has expired. Please logout and login again.';
+        } else if (status === 0) {
+          message = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (serverMessage) {
+          message = serverMessage;
+        }
+        
+        this.errorMessage = message;
         this.applications = [];
+        this.showApplications = false; // Close the modal on error
       }
     });
+  }
+
+  loadApplicationStats() {
+    // Load applications for all jobs to calculate stats
+    let totalApps = 0;
+    let pendingApps = 0;
+    let loadedCount = 0;
+    
+    if (this.myJobs.length === 0) {
+      this.totalApplications = 0;
+      this.pendingApplications = 0;
+      return;
+    }
+    
+    const currentUser = this.authService.getCurrentUser();
+    const currentUserId = currentUser?.id;
+    
+    this.myJobs.forEach(job => {
+      if (job.id) {
+        // Double-check ownership before making the request
+        const jobCreatedBy = (job as any).createdBy ?? (job as any).CreatedBy;
+        if (currentUserId && jobCreatedBy !== currentUserId) {
+          console.warn(`Skipping job ${job.id} - createdBy (${jobCreatedBy}) doesn't match current user (${currentUserId})`);
+          loadedCount++;
+          if (loadedCount === this.myJobs.length) {
+            this.totalApplications = totalApps;
+            this.pendingApplications = pendingApps;
+          }
+          return; // Skip this job
+        }
+        
+        this.jobApplicationService.getApplicationsByJobId(job.id).subscribe({
+          next: (apps: Application[]) => {
+            totalApps += apps.length;
+            pendingApps += apps.filter(app => app.status === 0).length;
+            loadedCount++;
+            
+            // Update stats when all jobs are loaded
+            if (loadedCount === this.myJobs.length) {
+              this.totalApplications = totalApps;
+              this.pendingApplications = pendingApps;
+            }
+          },
+          error: (error: any) => {
+            // Handle 403 errors (job not owned by user) - this shouldn't happen if filtering is correct
+            if (error.status === 403) {
+              console.warn(`Job ${job.id} returned 403 - not owned by current user (createdBy: ${jobCreatedBy}, currentUserId: ${currentUserId})`);
+            } else {
+              console.error(`Error loading applications for job ${job.id}:`, error);
+            }
+            loadedCount++;
+            
+            // Update stats even if some requests fail
+            if (loadedCount === this.myJobs.length) {
+              this.totalApplications = totalApps;
+              this.pendingApplications = pendingApps;
+            }
+          }
+        });
+      } else {
+        loadedCount++;
+        if (loadedCount === this.myJobs.length) {
+          this.totalApplications = totalApps;
+          this.pendingApplications = pendingApps;
+        }
+      }
+    });
+  }
+
+  updateApplicationStats() {
+    // Recalculate stats from currently viewed applications
+    if (this.applications.length > 0) {
+      // This is called when viewing applications for a specific job
+      // We'll keep the overall stats from loadApplicationStats
+      // But we can update if needed
+    }
   }
 
   closeApplicationsModal() {

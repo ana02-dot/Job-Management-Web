@@ -253,6 +253,28 @@ export class ApplyJobComponent implements OnInit {
       return;
     }
 
+    const user = this.authService.getCurrentUser();
+    if (!user) {
+      this.errorMessage = 'You must be logged in to apply for jobs.';
+      this.router.navigate(['/auth']);
+      return;
+    }
+
+    if (user.role !== 2) { // 2 = Applicant
+      this.errorMessage = 'Only applicants can apply for jobs.';
+      return;
+    }
+
+    if (!this.applicationData.jobId || this.applicationData.jobId <= 0) {
+      this.errorMessage = 'Invalid job ID. Please select a valid job.';
+      return;
+    }
+
+    if (!this.applicationData.applicantId || this.applicationData.applicantId <= 0) {
+      this.errorMessage = 'Invalid user ID. Please logout and login again.';
+      return;
+    }
+
     this.isSubmitting = true;
     this.errorMessage = '';
     this.successMessage = '';
@@ -262,6 +284,8 @@ export class ApplyJobComponent implements OnInit {
       applicantId: this.applicationData.applicantId,
       resume: this.applicationData.resume.trim()
     };
+
+    console.log('Submitting application:', application);
 
     this.jobApplicationService.createApplication(application).subscribe({
       next: (response) => {
@@ -277,27 +301,44 @@ export class ApplyJobComponent implements OnInit {
       error: (error: any) => {
         console.error('Error submitting application:', error);
         
+        // Handle error from interceptor (which wraps the original error)
+        const errorObj = error?.originalError || error;
         let message = 'Failed to submit application. ';
         
-        if (error.error?.message) {
-          message += error.error.message;
-        } else if (error.message) {
-          message += error.message;
+        // Try to get message from various possible locations
+        if (error?.message) {
+          message = error.message;
+        } else if (errorObj?.error?.message) {
+          message = errorObj.error.message;
+        } else if (errorObj?.message) {
+          message = errorObj.message;
+        } else if (typeof errorObj?.error === 'string') {
+          message = errorObj.error;
         }
 
         // Handle specific error cases
-        if (error.status === 400) {
-          if (error.error?.message?.includes('already applied')) {
+        const status = error?.status ?? errorObj?.status ?? 0;
+        if (status === 400) {
+          const errorMsg = message.toLowerCase();
+          if (errorMsg.includes('already applied')) {
             message = 'You have already applied for this job.';
-          } else if (error.error?.message?.includes('deadline')) {
+          } else if (errorMsg.includes('deadline')) {
             message = 'The application deadline for this job has passed.';
-          } else if (error.error?.message?.includes('not accepting')) {
+          } else if (errorMsg.includes('not accepting')) {
             message = 'This job is no longer accepting applications.';
+          } else if (errorMsg.includes('bad request')) {
+            message = 'Invalid request. Please check your application details.';
           }
-        } else if (error.status === 401) {
-          message += '\n\nYour session may have expired. Please logout and login again.';
-        } else if (error.status === 0) {
-          message += '\n\nCannot connect to server. Please check if the backend is running.';
+        } else if (status === 401) {
+          message = 'Your session has expired. Please logout and login again.';
+        } else if (status === 403) {
+          message = 'You do not have permission to apply for jobs. Please ensure you are logged in as an Applicant.';
+        } else if (status === 0) {
+          message = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (status === 404) {
+          message = 'Job not found. The job may have been removed.';
+        } else if (status >= 500) {
+          message = 'Server error. Please try again later.';
         }
 
         this.errorMessage = message;

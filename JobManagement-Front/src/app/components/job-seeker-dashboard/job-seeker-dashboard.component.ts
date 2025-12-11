@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
-import { JobApplicationService, Application } from '../../services/job-application.service';
+import { JobApplicationService, Application, CreateApplicationRequest } from '../../services/job-application.service';
 import { LucideAngularModule } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
@@ -137,14 +137,15 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                 <p class="text-sm text-slate-600">{{ job.requirements }}</p>
               </div>
 
-              <button
-                (click)="navigateToApply(job.id)"
-                [disabled]="hasApplied(job.id)"
-                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-                <lucide-send class="w-4 h-4" />
-                <span *ngIf="!hasApplied(job.id)">Apply Now</span>
-                <span *ngIf="hasApplied(job.id)">Already Applied</span>
-              </button>
+              <div class="flex gap-2">
+                <button
+                  (click)="navigateToApply(job.id)"
+                  [disabled]="hasApplied(job.id)"
+                  class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                  <span *ngIf="!hasApplied(job.id)">View Details & Apply</span>
+                  <span *ngIf="hasApplied(job.id)">Already Applied</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -197,7 +198,6 @@ export class JobSeekerDashboardComponent implements OnInit {
   myApplications: Application[] = [];
   isLoadingJobs = false;
   isLoadingApplications = false;
-  isApplying = false;
   activeTab: 'jobs' | 'applications' = 'jobs';
   currentUserId = 0;
 
@@ -258,6 +258,7 @@ export class JobSeekerDashboardComponent implements OnInit {
     }
     this.router.navigate(['/apply', jobId]);
   }
+
 
   hasApplied(jobId: number): boolean {
     return this.myApplications.some(app => app.jobId === jobId);

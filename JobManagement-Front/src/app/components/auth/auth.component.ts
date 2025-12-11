@@ -140,7 +140,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                       required
                       minlength="2"
                       maxlength="100"
-                      pattern="^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ\s\-']+$"
+                      pattern="^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$"
                       [class.border-red-500]="isFirstNameInvalid()">
                   <div *ngIf="isFirstNameInvalid()" class="text-red-600 text-xs mt-0.5">
                     First name must be 2-100 characters, letters only
@@ -158,7 +158,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                       required
                       minlength="2"
                       maxlength="100"
-                      pattern="^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ\s\-']+$"
+                      pattern="^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$"
                       [class.border-red-500]="isLastNameInvalid()">
                   <div *ngIf="isLastNameInvalid()" class="text-red-600 text-xs mt-0.5">
                     Last name must be 2-100 characters, letters only
@@ -401,12 +401,12 @@ export class AuthComponent {
 
   isFirstNameInvalid(): boolean {
     const fn = this.signupData.firstName || '';
-    return fn.length > 0 && (fn.length < 2 || fn.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ\s\-']+$/.test(fn));
+    return fn.length > 0 && (fn.length < 2 || fn.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$/.test(fn));
   }
 
   isLastNameInvalid(): boolean {
     const ln = this.signupData.lastName || '';
-    return ln.length > 0 && (ln.length < 2 || ln.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ\s\-']+$/.test(ln));
+    return ln.length > 0 && (ln.length < 2 || ln.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$/.test(ln));
   }
 
   isPhoneNumberInvalid(): boolean {
