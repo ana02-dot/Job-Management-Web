@@ -58,11 +58,37 @@ public class JobService : IJobService
         // If userId is null, return all jobs (for Admin users)
         if (userId.HasValue)
         {
+            System.Diagnostics.Debug.WriteLine($"JobService.GetAllJobsAsync: Filtering by userId={userId.Value}");
             var returnedJobs = await _jobRepository.GetByCreatorAsync(userId.Value);
-            return returnedJobs.ToList();
+            var jobsList = returnedJobs.ToList();
+            
+            // MANDATORY safety check - verify ALL jobs belong to the user
+            // Filter out any jobs that don't match, even if repository returned them
+            var originalCount = jobsList.Count;
+            jobsList = jobsList
+                .Where(j => j.CreatedBy.HasValue && j.CreatedBy.Value == userId.Value)
+                .ToList();
+            
+            if (originalCount != jobsList.Count)
+            {
+                System.Diagnostics.Debug.WriteLine($"⚠️ WARNING: Service filtered out {originalCount - jobsList.Count} jobs not owned by user {userId.Value}");
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"JobService.GetAllJobsAsync: Returning {jobsList.Count} jobs for user {userId.Value}");
+            
+            // Final verification - this should never fail, but double-check
+            var stillInvalid = jobsList.Where(j => !j.CreatedBy.HasValue || j.CreatedBy.Value != userId.Value).ToList();
+            if (stillInvalid.Any())
+            {
+                throw new InvalidOperationException(
+                    $"Service layer validation failed: {stillInvalid.Count} jobs still don't belong to user {userId.Value}");
+            }
+            
+            return jobsList;
         }
         else
         {
+            System.Diagnostics.Debug.WriteLine("JobService.GetAllJobsAsync: No userId filter - returning all jobs (Admin user)");
             var returnedJobs = await _jobRepository.GetAllAsync();
             return returnedJobs.ToList();
         }
@@ -114,8 +140,6 @@ public class JobService : IJobService
         existingJob.UpdatedAt = DateTime.UtcNow;
 
         existingJob.UpdatedBy = updater.Email;
-
- 
 
         await _jobRepository.UpdateAsync(existingJob);
 
