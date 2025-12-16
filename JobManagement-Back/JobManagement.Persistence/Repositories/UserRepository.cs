@@ -29,13 +29,6 @@ public class UserRepository : IUserRepository
         
     }
 
-    public async Task<User?> GetByPersonalNumberAsync(string personalNumber)
-    {
-        return await _context.Users
-            .Where(u => u.IsDeleted == 0)
-            .FirstOrDefaultAsync(u => u.PersonalNumber == personalNumber);
-    }
-
     public async Task<List<User>> GetAllAsync()
     {
         return await _context.Users
@@ -66,23 +59,10 @@ public class UserRepository : IUserRepository
         }
     }
 
-    public async Task<bool> ExistsAsync(int id)
-    {
-        return await _context.Users
-            .Where(u => u.IsDeleted != 1)
-            .AnyAsync(u => u.Id == id);
-    }
-
     public async Task<bool> EmailExistsAsync(string email)
     {
         return await _context.Users
             .AnyAsync(u => u.Email == email);
-    }
-
-    public async Task<bool> PersonalNumberExistsAsync(string personalNumber)
-    {
-        return await _context.Users
-            .AnyAsync(u => u.PersonalNumber == personalNumber);
     }
 
     public async Task<bool> PhoneNumberExistsAsync(string phoneNumber)
