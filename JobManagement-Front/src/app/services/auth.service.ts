@@ -16,7 +16,6 @@ export interface LoginResponse {
 }
 
 export interface UserRegistrationRequest {
-  personalNumber: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -45,7 +44,6 @@ export interface UserInfo {
   firstName: string;
   lastName: string;
   role: number;
-  personalNumber?: string;
   phoneNumber?: string;
 }
 
