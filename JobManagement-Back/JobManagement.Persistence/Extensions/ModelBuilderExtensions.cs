@@ -11,9 +11,7 @@ public static class ModelBuilderExtensions
         {
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired();
-            entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
         });
     }
