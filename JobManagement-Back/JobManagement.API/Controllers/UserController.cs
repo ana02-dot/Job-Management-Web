@@ -1,10 +1,11 @@
-﻿using JobManagement.Application.Services;
+﻿using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using AutoMapper;
 using JobManagement.Application.Dtos;
+using BCrypt.Net;
 
 namespace JobManagement.API.Controllers;
 
@@ -13,13 +14,15 @@ namespace JobManagement.API.Controllers;
 [Produces("application/json")]
 public class UserController : ControllerBase
 {
-    private readonly UserService _userService;
     private readonly IMapper _mapper;
+    private readonly IUserRepository _userRepository;
 
-    public UserController(UserService userService, IMapper mapper)
+    public UserController(
+        IMapper mapper,
+        IUserRepository userRepository)
     {
-        _userService = userService;
         _mapper = mapper;
+        _userRepository = userRepository;
     }
 
     /// <summary>
@@ -37,7 +40,7 @@ public class UserController : ControllerBase
     {
         Log.Information("Getting user with ID: {UserId}", id);
 
-        var user = await _userService.GetUserByIdAsync(id);
+        var user = await _userRepository.GetByIdAsync(id);
         if (user == null)
         {
             Log.Warning("User with ID {UserId} not found", id);
@@ -61,8 +64,35 @@ public class UserController : ControllerBase
     [ProducesResponseType(400)]
     public async Task<ActionResult<UserRegistrationResponse>> RegisterUser([FromBody] UserRegistrationRequest request)
     {
-        var createdUser = await _userService.CreateUserAsync(request);
+        // Check if email already exists
+        if (await _userRepository.EmailExistsAsync(request.Email))
+        {
+            return BadRequest(new { Message = "Email already exists" });
+        }
+
+        // Check if phone number already exists
+        if (await _userRepository.PhoneNumberExistsAsync(request.PhoneNumber))
+        {
+            return BadRequest(new { Message = "Phone number already exists" });
+        }
+
+        // Create user entity from request
+        var user = new User
+        {
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            PhoneNumber = request.PhoneNumber,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            Role = request.Role,
+            IsEmailVerified = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var createdUser = await _userRepository.CreateAsync(user);
         Log.Information("Successfully registered user {UserId} with email {Email}", createdUser.Id, request.Email);
+        
         return Ok(new UserRegistrationResponse
         {
             UserId = createdUser.Id,
@@ -87,13 +117,14 @@ public class UserController : ControllerBase
     {
         Log.Information("Deleting user with ID: {UserId}", id);
 
-        var result = await _userService.DeleteUserAsync(id);
-        if (!result)
+        var user = await _userRepository.GetByIdAsync(id);
+        if (user == null)
         {
             Log.Warning("User with ID {UserId} not found for deletion", id);
             return NotFound(new { Message = $"User with ID {id} not found" });
         }
 
+        await _userRepository.DeleteAsync(id);
         Log.Information("Successfully deleted user with ID {UserId}", id);
         return Ok(new { Message = $"User with ID {id} deleted successfully" });
     }
@@ -103,13 +134,12 @@ public class UserController : ControllerBase
     /// </summary>
     /// <returns>List of all users</returns>
     [HttpGet]
-    //[Authorize(Roles = "Admin,Manager")]
     [ProducesResponseType(typeof(IEnumerable<UserInfo>), 200)]
     public async Task<ActionResult<IEnumerable<UserInfo>>> GetAllUsers()
     {
         Log.Information("Getting all users");
 
-        var users = await _userService.GetAllUsersAsync();
+        var users = await _userRepository.GetAllAsync();
         var userInfos = _mapper.Map<IEnumerable<UserInfo>>(users);
 
         return Ok(userInfos);
@@ -122,7 +152,7 @@ public class UserController : ControllerBase
     {
         Log.Information("Getting user with email {EmailAddress}", email);
 
-        var user = await _userService.GetUserByEmailAsync(email);
+        var user = await _userRepository.GetByEmailAsync(email);
 
         if (user == null)
             return NotFound();
