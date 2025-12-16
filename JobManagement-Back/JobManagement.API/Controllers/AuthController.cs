@@ -1,4 +1,5 @@
-﻿using JobManagement.Application.Dtos;
+﻿using System.Threading.Tasks;
+using JobManagement.Application.Dtos;
 using JobManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -1,4 +1,6 @@
-﻿using JobManagement.Domain.Entities;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using JobManagement.Domain.Entities;
 
 namespace JobManagement.Application.Interfaces;
 

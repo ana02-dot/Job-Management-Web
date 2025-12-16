@@ -1,4 +1,6 @@
-﻿using JobManagement.Domain.Common;
+﻿using System;
+using System.Collections.Generic;
+using JobManagement.Domain.Common;
 using JobManagement.Domain.Enums;
 
 namespace JobManagement.Domain.Entities;

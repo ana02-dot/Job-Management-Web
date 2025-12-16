@@ -1,4 +1,7 @@
-﻿using JobManagement.Application.Services;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using JobManagement.Application.Services;
 using JobManagement.Application.Dtos;
 using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
@@ -7,6 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace JobManagement.API.Controllers;
 [ApiController]

@@ -1,4 +1,8 @@
-﻿using JobManagement.Application.Dtos;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using JobManagement.Application.Dtos;
 using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using JobManagement.Domain.Enums;

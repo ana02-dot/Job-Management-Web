@@ -1,4 +1,6 @@
-﻿namespace JobManagement.Application.Dtos;
+﻿using System;
+
+namespace JobManagement.Application.Dtos;
 
 public class UserRegistrationResponse
 {

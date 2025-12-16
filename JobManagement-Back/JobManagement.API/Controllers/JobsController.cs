@@ -1,10 +1,14 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+﻿using System;
+using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Security.Claims;
+using System.Threading.Tasks;
 using JobManagement.Application.Dtos;
 using JobManagement.Domain.Enums;
 

@@ -1,4 +1,7 @@
-﻿using JobManagement.Application.Interfaces;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

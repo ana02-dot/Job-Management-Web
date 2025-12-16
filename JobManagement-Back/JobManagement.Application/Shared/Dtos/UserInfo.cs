@@ -1,4 +1,5 @@
-﻿using JobManagement.Domain.Enums;
+﻿using System;
+using JobManagement.Domain.Enums;
 
 namespace JobManagement.Application.Dtos;
 

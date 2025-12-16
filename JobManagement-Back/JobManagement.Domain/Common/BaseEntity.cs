@@ -1,4 +1,5 @@
-﻿using JobManagement.Domain.Entities;
+﻿using System;
+using JobManagement.Domain.Entities;
 
 namespace JobManagement.Domain.Common;
 
