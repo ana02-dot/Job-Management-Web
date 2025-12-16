@@ -7,14 +7,6 @@ public class RegisterRequestValidator : AbstractValidator<UserRegistrationReques
 {
     public RegisterRequestValidator()
     {
-        RuleFor(u => u.PersonalNumber)
-            .NotEmpty()
-            .WithMessage("Personal number is required")
-            .Length(11)
-            .WithMessage("Personal number must be exactly 11 digits")
-            .Matches(@"^\d{11}$")
-            .WithMessage("Personal number must contain only digits");
-
         RuleFor(u => u.FirstName)
             .NotEmpty()
             .WithMessage("First name is required")
@@ -40,9 +32,8 @@ public class RegisterRequestValidator : AbstractValidator<UserRegistrationReques
             .WithMessage("Email cannot exceed 200 characters");
 
         RuleFor(u => u.PhoneNumber)
-            .MaximumLength(50)
-            .WithMessage("Phone number cannot exceed 50 characters")
-            .When(x => !string.IsNullOrWhiteSpace(x.PhoneNumber));
+            .NotEmpty()
+            .WithMessage("Phone number is required");
 
         RuleFor(u => u.Password)
             .NotEmpty()
