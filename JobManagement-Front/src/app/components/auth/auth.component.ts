@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService, LoginRequest, UserRegistrationRequest } from '../../services/auth.service';
-import { LucideAngularModule, Briefcase, Building2, ArrowLeft, AlertCircle } from 'lucide-angular';
+import { LucideAngularModule, Briefcase, Building2, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -112,24 +112,6 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
               <!-- Signup fields -->
               <div *ngIf="authType === 'signup'" class="space-y-2 sm:space-y-2.5">
                 <div>
-                  <label class="block text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 text-slate-700">Personal Number (11 digits) *</label>
-                  <input
-                      type="text"
-                      [(ngModel)]="signupData.personalNumber"
-                      name="personalNumber"
-                      class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                      placeholder="12345678901"
-                      required
-                      maxlength="11"
-                      minlength="11"
-                      pattern="[0-9]{11}"
-                      [class.border-red-500]="isPersonalNumberInvalid()">
-                  <div *ngIf="isPersonalNumberInvalid()" class="text-red-600 text-xs mt-0.5">
-                    Personal number must be exactly 11 digits
-                  </div>
-                </div>
-
-                <div>
                   <label class="block text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 text-slate-700">First Name *</label>
                   <input
                       type="text"
@@ -166,18 +148,17 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                 </div>
 
                 <div>
-                  <label class="block text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 text-slate-700">Phone Number (optional)</label>
+                  <label class="block text-xs sm:text-sm font-medium mb-0.5 sm:mb-1 text-slate-700">Phone Number *</label>
                   <input
                       type="tel"
                       [(ngModel)]="signupData.phoneNumber"
                       name="phoneNumber"
+                      (input)="formatPhoneNumber()"
                       class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-                      placeholder="+995 555 123 456"
-                      maxlength="50"
-                      [class.border-red-500]="isPhoneNumberInvalid()">
-                  <div *ngIf="isPhoneNumberInvalid()" class="text-red-600 text-xs mt-0.5">
-                    Phone number cannot exceed 50 characters
-                  </div>
+                      placeholder="+995XXXXXXXXX"
+                      maxlength="13"
+                      required>
+                  <div class="text-xs text-slate-500 mt-0.5">Format: +995 followed by 9 digits</div>
                 </div>
               </div>
 
@@ -347,11 +328,11 @@ export class AuthComponent {
   specialCharacters = '@ $ ! % * ? &';
 
   signupData: Partial<UserRegistrationRequest> = {
-    personalNumber: '',
     firstName: '',
     lastName: '',
     phoneNumber: ''
   };
+
 
   constructor(
       public router: Router,
@@ -394,11 +375,6 @@ export class AuthComponent {
 
   // ===== FIELD VALIDATION HELPERS =====
 
-  isPersonalNumberInvalid(): boolean {
-    const pn = this.signupData.personalNumber || '';
-    return pn.length > 0 && (pn.length !== 11 || !/^\d{11}$/.test(pn));
-  }
-
   isFirstNameInvalid(): boolean {
     const fn = this.signupData.firstName || '';
     return fn.length > 0 && (fn.length < 2 || fn.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$/.test(fn));
@@ -409,9 +385,49 @@ export class AuthComponent {
     return ln.length > 0 && (ln.length < 2 || ln.length > 100 || !/^[a-zA-ZąčęėįšųūžĄČĘĖĮŠŲŪŽ' -]+$/.test(ln));
   }
 
+  formatPhoneNumber(): void {
+    let phone = this.signupData.phoneNumber || '';
+    
+    // Remove all non-digit characters except +
+    phone = phone.replace(/[^\d+]/g, '');
+    
+    // If it doesn't start with +995, add it
+    if (!phone.startsWith('+995')) {
+      if (phone.startsWith('995')) {
+        phone = '+' + phone;
+      } else if (phone.startsWith('+')) {
+        // If it starts with + but not +995, remove it and add +995
+        phone = '+995' + phone.substring(1);
+      } else {
+        // Add +995 prefix
+        phone = '+995' + phone;
+      }
+    }
+    
+    // Remove any digits beyond +995XXXXXXXXX (13 characters total)
+    if (phone.length > 13) {
+      phone = phone.substring(0, 13);
+    }
+    
+    // Only allow digits after +995
+    if (phone.length > 4) {
+      const prefix = phone.substring(0, 4); // +995
+      const digits = phone.substring(4).replace(/\D/g, ''); // Only digits
+      phone = prefix + digits;
+      
+      // Limit to 9 digits after +995
+      if (digits.length > 9) {
+        phone = prefix + digits.substring(0, 9);
+      }
+    }
+    
+    this.signupData.phoneNumber = phone;
+  }
+
   isPhoneNumberInvalid(): boolean {
     const pn = this.signupData.phoneNumber || '';
-    return pn.length > 50;
+    // Must be exactly +995 followed by 9 digits (13 characters total)
+    return pn.length === 0 || !/^\+995\d{9}$/.test(pn);
   }
 
   // ===== FORM SUBMISSION =====
@@ -459,12 +475,6 @@ export class AuthComponent {
       return;
     }
 
-    if (this.isPersonalNumberInvalid()) {
-      this.errorMessage = 'Personal number must be exactly 11 digits';
-      this.isLoading = false;
-      return;
-    }
-
     if (this.isFirstNameInvalid()) {
       this.errorMessage = 'First name is invalid';
       this.isLoading = false;
@@ -478,13 +488,14 @@ export class AuthComponent {
     }
 
     if (this.isPhoneNumberInvalid()) {
-      this.errorMessage = 'Phone number cannot exceed 50 characters';
+      const pn = this.signupData.phoneNumber || '';
+      this.errorMessage = pn.length === 0 ? 'Phone number is required' : 'Phone number must be +995 followed by 9 digits (e.g., +995551234567)';
       this.isLoading = false;
       return;
     }
+    
 
     const registrationRequest: UserRegistrationRequest = {
-      personalNumber: this.signupData.personalNumber || '',
       firstName: this.signupData.firstName || '',
       lastName: this.signupData.lastName || '',
       phoneNumber: this.signupData.phoneNumber || '',
@@ -529,6 +540,7 @@ export class AuthComponent {
       }
     });
   }
+
 
   private navigateBasedOnRole() {
     const user = this.authService.getCurrentUser();
