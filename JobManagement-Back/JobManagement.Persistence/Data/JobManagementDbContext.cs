@@ -27,19 +27,18 @@ public class JobManagementDbContext : DbContext
             // Base Entity Properties
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired(false);
             entity.Property(e => e.UpdatedAt).IsRequired(false);
-            entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
             // User-specific Properties
-            entity.Property(e => e.PersonalNumber).IsRequired().HasMaxLength(11);
             entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(200);
             entity.Property(e => e.PhoneNumber).HasMaxLength(50);
             entity.Property(e => e.PasswordHash).IsRequired();
             entity.Property(e => e.Role).HasConversion<int>();
+            entity.Property(e => e.IsEmailVerified).IsRequired().HasDefaultValue(false);
+            entity.Property(e => e.EmailVerifiedAt).IsRequired(false);
 
             // Navigation properties configuration
             entity.HasMany(u => u.Applications)
@@ -59,15 +58,7 @@ public class JobManagementDbContext : DbContext
 
             // Indexes
             entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.PersonalNumber).IsUnique();
             entity.HasIndex(e => e.PhoneNumber).IsUnique();
-            
-            // Self-referencing relationship for User.Creator
-            entity.HasOne(u => u.Creator)
-                .WithMany()
-                .HasForeignKey(u => u.CreatedBy)
-                .OnDelete(DeleteBehavior.NoAction)
-                .IsRequired(false);
         });
 
         // ===== JOB ENTITY =====
@@ -79,9 +70,7 @@ public class JobManagementDbContext : DbContext
             // Base Entity Properties
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired(false);
-            entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
             // Job-specific Properties
@@ -90,16 +79,17 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Requirements).IsRequired();
             entity.Property(e => e.Location).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Status).HasConversion<int>();
-            entity.Property(e => e.Salary).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Salary).IsRequired().HasMaxLength(100);
             entity.Property(e => e.ApplicationDeadline).IsRequired();
+            entity.Property(e => e.WorkType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedBy).IsRequired(false);
 
             // Navigation properties configuration
             entity.HasMany(j => j.Applications)
                 .WithOne(a => a.Job)
                 .HasForeignKey(a => a.JobId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
-            // Job -> User (Creator) relationship is already configured in User entity
         });
 
         // ===== APPLICATIONS ENTITY =====
@@ -111,9 +101,7 @@ public class JobManagementDbContext : DbContext
             // Base Entity Properties
             entity.Property(e => e.Id).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
-            entity.Property(e => e.CreatedBy).IsRequired();
             entity.Property(e => e.UpdatedAt).IsRequired(false);
-            entity.Property(e => e.UpdatedBy).HasMaxLength(200);
             entity.Property(e => e.IsDeleted).HasDefaultValue(0);
             
             // Applications-specific Properties
