@@ -289,8 +289,6 @@ builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IJobApplicationRepository, JobApplicationRepository>();
 
 // Services
-builder.Services.AddScoped<UserService>();
-builder.Services.AddScoped<JobService>();
 builder.Services.AddScoped<JobApplicationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddHttpClient<PhoneValidationService>();
@@ -304,6 +302,7 @@ app.UseSwaggerConfiguration();
 
 app.UseCors("AllowAngularApp");
 
+app.UseRouting();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
