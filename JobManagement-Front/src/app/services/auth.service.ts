@@ -47,6 +47,8 @@ export interface UserInfo {
   phoneNumber?: string;
 }
 
+export interface GetAllUsersResponse extends Array<UserInfo> {}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -55,7 +57,6 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
 
   constructor(private http: HttpClient) {
-    // Check if user is already logged in
     const token = localStorage.getItem('token');
     const userStr = localStorage.getItem('user');
     if (token && userStr) {
@@ -82,7 +83,6 @@ export class AuthService {
           if (response.token) {
             localStorage.setItem('token', response.token);
 
-            // Decode JWT token to extract user info (don't log token contents for security)
             const tokenPayload = this.decodeToken(response.token);
 
             const userId = this.getClaimValue(
@@ -95,7 +95,6 @@ export class AuthService {
                 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
                 'email'
             ) || response.email;
-            // Try multiple claim types for role (enum name or numeric value)
             const userRole = this.getClaimValue(
                 tokenPayload,
                 'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
@@ -105,13 +104,12 @@ export class AuthService {
             const user: User = {
               id: parseInt(userId) || 0,
               email: userEmail,
-              firstName: '', // Will be fetched separately
-              lastName: '', // Will be fetched separately
+              firstName: '',
+              lastName: '',
               role: this.parseRole(userRole || '2'),
               token: response.token
             };
 
-            // Fetch full user info
             this.http.get<any>(`${environment.apiUrl}/user/email?email=${encodeURIComponent(user.email)}`).subscribe({
               next: (userInfo: any) => {
                 user.firstName = userInfo.firstName || '';
@@ -121,7 +119,6 @@ export class AuthService {
                 this.currentUserSubject.next(user);
               },
               error: (error) => {
-                // If fetch fails, still save what we have (don't log sensitive error details)
                 localStorage.setItem('user', JSON.stringify(user));
                 this.currentUserSubject.next(user);
               }
@@ -147,8 +144,6 @@ export class AuthService {
   }
 
   private parseRole(roleString: string): number {
-    // Role enum: 0 = Admin, 1 = HR, 2 = Applicant
-    // Backend sends enum as string: "Admin", "HR", or "Applicant"
     if (roleString === 'HR' || roleString === '1') return 1;
     if (roleString === 'Admin' || roleString === '0') return 0;
     return 2; // Default to Applicant
@@ -203,29 +198,45 @@ export class AuthService {
     return !!this.getToken();
   }
 
+  getAllUsers(): Observable<GetAllUsersResponse> {
+    const token = this.getToken();
+    const headers = new HttpHeaders({
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    });
+
+    return this.http.get<GetAllUsersResponse>(
+        `${environment.apiUrl}/user`,
+        { headers }
+    ).pipe(
+        catchError(this.handleError)
+    );
+  }
+
   private handleError(error: HttpErrorResponse) {
     console.error('HTTP Error occurred:', error);
 
-    let errorMessage = 'An error occurred';
-
     if (error.error instanceof ErrorEvent) {
-      // Client-side or network error
       console.error('Client-side error:', error.error.message);
-      errorMessage = `Network error: ${error.error.message}`;
+      return throwError(() => ({
+        error: { message: `Network error: ${error.error.message}` },
+        status: 0,
+        fullError: error
+      }));
     } else if (error.status === 0) {
-      // Status 0 usually means CORS issue or network failure
       console.error('CORS or Network Error - Check if backend is running and CORS is configured');
-      errorMessage = 'Cannot connect to server. Please check if the backend is running at http://localhost:5265';
+      return throwError(() => ({
+        error: { message: 'Cannot connect to server. Please check if the backend is running at http://localhost:5265' },
+        status: 0,
+        fullError: error
+      }));
     } else {
-      // Backend returned an unsuccessful response code
       console.error(`Backend returned code ${error.status}, body:`, error.error);
-      errorMessage = error.error?.message || error.message || `Server error: ${error.status}`;
-    }
 
-    return throwError(() => ({
-      error: { message: errorMessage },
-      status: error.status,
-      fullError: error
-    }));
+      return throwError(() => ({
+        error: error.error || { message: error.message || `Server error: ${error.status}` },
+        status: error.status,
+        fullError: error
+      }));
+    }
   }
 }
