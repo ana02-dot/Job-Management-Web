@@ -22,7 +22,9 @@ export interface CreateJobRequest {
   description: string;
   requirements: string;
   location: string;
-  salary?: number;
+  salary?: string; // Changed to string to match backend
+  workType?: string; // remote, onsite, hybrid
+  category?: string;
   applicationDeadline: string;
 }
 
