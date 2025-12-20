@@ -22,6 +22,14 @@ public class CreateJobRequestValidator : AbstractValidator<CreateJobRequest>
             .NotEmpty().WithMessage("Location is required.")
             .MaximumLength(200).WithMessage("Location must be at most 200 characters.");
 
+        RuleFor(x => x.WorkType)
+            .NotEmpty().WithMessage("Work type is required.")
+            .MaximumLength(50).WithMessage("Work type must be at most 50 characters.");
+
+        RuleFor(x => x.Category)
+            .NotEmpty().WithMessage("Category is required.")
+            .MaximumLength(100).WithMessage("Category must be at most 100 characters.");
+
         RuleFor(x => x.ApplicationDeadline)
             .GreaterThan(DateTime.UtcNow).
             WithMessage("Application deadline must be in the future.");

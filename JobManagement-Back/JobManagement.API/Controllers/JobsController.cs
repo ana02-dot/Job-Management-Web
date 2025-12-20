@@ -209,8 +209,8 @@ public class JobsController : ControllerBase
                 CreatedBy = userId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
-                WorkType = string.Empty,
-                Category = string.Empty
+                WorkType = request.WorkType ?? string.Empty,
+                Category = request.Category ?? string.Empty
             };
             
             var createdJob = await _jobRepository.CreateAsync(job);
@@ -269,6 +269,8 @@ public class JobsController : ControllerBase
             existingJob.Requirements = request.Requirements;
             existingJob.Salary = request.Salary.HasValue ? request.Salary.Value.ToString() : string.Empty;
             existingJob.Location = request.Location;
+            existingJob.WorkType = request.WorkType;
+            existingJob.Category = request.Category;
             existingJob.ApplicationDeadline = request.ApplicationDeadline;
             existingJob.UpdatedAt = DateTime.UtcNow;
             
