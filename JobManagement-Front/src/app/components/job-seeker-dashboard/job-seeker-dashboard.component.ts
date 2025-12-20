@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
 import { JobApplicationService, Application, CreateApplicationRequest } from '../../services/job-application.service';
-import { LucideAngularModule } from 'lucide-angular';
+import { LucideAngularModule, Search } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -48,7 +48,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             <div class="flex items-center justify-between">
               <div>
                 <p class="text-sm text-slate-600 mb-1">Available Jobs</p>
-                <p class="text-3xl font-bold text-blue-600">{{ availableJobs.length }}</p>
+                <p class="text-3xl font-bold text-blue-600">{{ filteredJobs.length }}</p>
               </div>
               <lucide-briefcase class="w-10 h-10 text-blue-600" />
             </div>
@@ -101,17 +101,106 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
         <div *ngIf="activeTab === 'jobs'" class="bg-white rounded-lg shadow-md p-6">
           <h2 class="text-2xl font-bold mb-4 text-slate-900">Browse Jobs</h2>
 
+          <!-- Filters Section -->
+          <div class="bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+              <!-- Title Search -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Job Title</label>
+                <div class="relative">
+                  <lucide-search class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    [(ngModel)]="filters.title"
+                    (ngModelChange)="filterJobs()"
+                    placeholder="Search by title..."
+                    class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+                </div>
+              </div>
+
+              <!-- Location -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Location</label>
+                <input
+                  type="text"
+                  [(ngModel)]="filters.location"
+                  (ngModelChange)="filterJobs()"
+                  placeholder="e.g. Tbilisi"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+              </div>
+
+              <!-- Work Type -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Work Type</label>
+                <select
+                  [(ngModel)]="filters.workType"
+                  (ngModelChange)="filterJobs()"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+                  <option value="">All Types</option>
+                  <option value="remote">Remote</option>
+                  <option value="onsite">Onsite</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+
+              <!-- Category -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Category</label>
+                <input
+                  type="text"
+                  [(ngModel)]="filters.category"
+                  (ngModelChange)="filterJobs()"
+                  placeholder="e.g. IT, Finance"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+              </div>
+
+              <!-- Salary Min -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Min Salary (₾)</label>
+                <input
+                  type="number"
+                  [(ngModel)]="filters.salaryMin"
+                  (ngModelChange)="filterJobs()"
+                  placeholder="Min"
+                  min="0"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+              </div>
+
+              <!-- Salary Max -->
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Max Salary (₾)</label>
+                <input
+                  type="number"
+                  [(ngModel)]="filters.salaryMax"
+                  (ngModelChange)="filterJobs()"
+                  placeholder="Max"
+                  min="0"
+                  class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-900">
+              </div>
+            </div>
+            
+            <!-- Clear Filters Button -->
+            <div class="flex justify-end">
+              <button
+                (click)="clearFilters()"
+                class="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors bg-white">
+                Clear All Filters
+              </button>
+            </div>
+          </div>
+
           <div *ngIf="isLoadingJobs" class="text-center py-8">
             <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             <p class="text-slate-600 mt-2">Loading jobs...</p>
           </div>
 
-          <div *ngIf="!isLoadingJobs && availableJobs.length === 0" class="text-center py-8 text-slate-600">
-            No active jobs available at the moment.
+          <div *ngIf="!isLoadingJobs && filteredJobs.length === 0" class="text-center py-8 text-slate-600">
+            <p *ngIf="hasActiveFilters()" class="mb-2">No jobs found matching your filters. Try adjusting your search criteria.</p>
+            <p *ngIf="!hasActiveFilters()">No active jobs available at the moment.</p>
           </div>
 
           <div *ngIf="!isLoadingJobs" class="space-y-4">
-            <div *ngFor="let job of availableJobs"
+            <div *ngFor="let job of filteredJobs"
                  class="border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow">
               <h3 class="text-xl font-semibold text-slate-900 mb-2">{{ job.title }}</h3>
 
@@ -119,6 +208,12 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                 <div class="flex items-center gap-1">
                   <lucide-map-pin class="w-4 h-4" />
                   <span>{{ job.location }}</span>
+                </div>
+                <div *ngIf="job.workType" class="flex items-center gap-1">
+                  <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{{ job.workType }}</span>
+                </div>
+                <div *ngIf="job.category" class="flex items-center gap-1">
+                  <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">{{ job.category }}</span>
                 </div>
                 <div class="flex items-center gap-1" *ngIf="job.salary">
                   <lucide-dollar-sign class="w-4 h-4" />
@@ -195,17 +290,27 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 export class JobSeekerDashboardComponent implements OnInit {
   userName = '';
   availableJobs: Job[] = [];
+  filteredJobs: Job[] = [];
   myApplications: Application[] = [];
   isLoadingJobs = false;
   isLoadingApplications = false;
   activeTab: 'jobs' | 'applications' = 'jobs';
   currentUserId = 0;
 
+  filters = {
+    title: '',
+    location: '',
+    workType: '',
+    category: '',
+    salaryMin: null as number | null,
+    salaryMax: null as number | null
+  };
+
   constructor(
-    private router: Router,
-    private authService: AuthService,
-    private jobService: JobService,
-    private jobApplicationService: JobApplicationService
+      private router: Router,
+      private authService: AuthService,
+      private jobService: JobService,
+      private jobApplicationService: JobApplicationService
   ) {}
 
   ngOnInit() {
@@ -226,6 +331,8 @@ export class JobSeekerDashboardComponent implements OnInit {
     this.jobService.getJobsByStatus(0).subscribe({ // 0 = Active
       next: (jobs: Job[]) => {
         this.availableJobs = jobs;
+        this.filteredJobs = jobs;
+        this.filterJobs();
         this.isLoadingJobs = false;
       },
       error: (error: any) => {
@@ -233,6 +340,75 @@ export class JobSeekerDashboardComponent implements OnInit {
         this.isLoadingJobs = false;
       }
     });
+  }
+
+  filterJobs() {
+    this.filteredJobs = this.availableJobs.filter(job => {
+      // Title filter
+      if (this.filters.title && !job.title.toLowerCase().includes(this.filters.title.toLowerCase().trim())) {
+        return false;
+      }
+
+      // Location filter
+      if (this.filters.location && !job.location.toLowerCase().includes(this.filters.location.toLowerCase().trim())) {
+        return false;
+      }
+
+      // WorkType filter
+      if (this.filters.workType && job.workType?.toLowerCase() !== this.filters.workType.toLowerCase()) {
+        return false;
+      }
+
+      // Category filter
+      if (this.filters.category && job.category && !job.category.toLowerCase().includes(this.filters.category.toLowerCase().trim())) {
+        return false;
+      }
+
+      // Salary range filter
+      if (this.filters.salaryMin !== null || this.filters.salaryMax !== null) {
+        const jobSalary = this.parseSalary(job.salary);
+        if (jobSalary === null) {
+          // If job has no salary but filters require it, exclude it
+          if (this.filters.salaryMin !== null) {
+            return false;
+          }
+        } else {
+          if (this.filters.salaryMin !== null && jobSalary < this.filters.salaryMin) {
+            return false;
+          }
+          if (this.filters.salaryMax !== null && jobSalary > this.filters.salaryMax) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
+  }
+
+  parseSalary(salary?: string): number | null {
+    if (!salary) return null;
+    // Remove currency symbols and extract numeric value
+    const numericValue = salary.replace(/[^\d.-]/g, '');
+    const parsed = parseFloat(numericValue);
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  hasActiveFilters(): boolean {
+    return !!(this.filters.title || this.filters.location || this.filters.workType ||
+        this.filters.category || this.filters.salaryMin !== null || this.filters.salaryMax !== null);
+  }
+
+  clearFilters() {
+    this.filters = {
+      title: '',
+      location: '',
+      workType: '',
+      category: '',
+      salaryMin: null,
+      salaryMax: null
+    };
+    this.filteredJobs = this.availableJobs;
   }
 
   loadMyApplications() {
