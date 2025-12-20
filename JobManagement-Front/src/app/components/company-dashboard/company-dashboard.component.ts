@@ -28,8 +28,8 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             <div class="flex items-center gap-4">
               <span class="text-slate-600 font-medium">{{ companyName }}</span>
               <button
-                (click)="logout()"
-                class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
+                  (click)="logout()"
+                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2">
                 <lucide-log-out class="w-4 h-4" />
                 Logout
               </button>
@@ -110,73 +110,100 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
               <div>
                 <label class="block text-sm font-medium mb-1 text-slate-700">Job Title *</label>
                 <input
-                  type="text"
-                  [(ngModel)]="newJob.title"
-                  name="title"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. Senior Software Engineer"
-                  required>
+                    type="text"
+                    [(ngModel)]="newJob.title"
+                    name="title"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. Senior Software Engineer"
+                    required>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1 text-slate-700">Location *</label>
                 <input
-                  type="text"
-                  [(ngModel)]="newJob.location"
-                  name="location"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. Tbilisi, Georgia"
-                  required>
+                    type="text"
+                    [(ngModel)]="newJob.location"
+                    name="location"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. Tbilisi, Georgia"
+                    required>
               </div>
             </div>
 
             <div>
               <label class="block text-sm font-medium mb-1 text-slate-700">Job Description *</label>
               <textarea
-                [(ngModel)]="newJob.description"
-                name="description"
-                rows="4"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Describe the role and responsibilities..."
-                required></textarea>
+                  [(ngModel)]="newJob.description"
+                  name="description"
+                  rows="4"
+                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Describe the role and responsibilities..."
+                  required></textarea>
             </div>
 
             <div>
               <label class="block text-sm font-medium mb-1 text-slate-700">Requirements *</label>
               <textarea
-                [(ngModel)]="newJob.requirements"
-                name="requirements"
-                rows="3"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="List the required qualifications and skills..."
-                required></textarea>
+                  [(ngModel)]="newJob.requirements"
+                  name="requirements"
+                  rows="3"
+                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="List the required qualifications and skills..."
+                  required></textarea>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Work Type *</label>
+                <select
+                    [(ngModel)]="newJob.workType"
+                    name="workType"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required>
+                  <option value="">Select work type</option>
+                  <option value="remote">Remote</option>
+                  <option value="onsite">Onsite</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Category *</label>
+                <input
+                    type="text"
+                    [(ngModel)]="newJob.category"
+                    name="category"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. IT, Finance, Marketing"
+                    required>
+              </div>
             </div>
 
             <div class="grid md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium mb-1 text-slate-700">Salary (GEL)</label>
                 <input
-                  type="number"
-                  [(ngModel)]="newJob.salary"
-                  name="salary"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. 5000">
+                    type="number"
+                    [(ngModel)]="newJob.salary"
+                    name="salary"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g. 5000">
               </div>
               <div>
-                <label class="block text-sm font-medium mb-1 text-slate-700">Application Deadline</label>
+                <label class="block text-sm font-medium mb-1 text-slate-700">Application Deadline *</label>
                 <input
-                  type="date"
-                  [(ngModel)]="newJob.applicationDeadline"
-                  name="deadline"
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  [min]="minDate">
+                    type="date"
+                    [(ngModel)]="newJob.applicationDeadline"
+                    name="deadline"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    [min]="minDate"
+                    required>
               </div>
             </div>
 
             <button
-              (click)="createJob()"
-              type="button"
-              [disabled]="isCreating"
-              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 font-medium">
+                (click)="createJob()"
+                type="button"
+                [disabled]="isCreating"
+                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 font-medium">
               <span *ngIf="!isCreating">Post Job</span>
               <span *ngIf="isCreating">Posting...</span>
             </button>
@@ -207,6 +234,12 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                       <lucide-map-pin class="w-4 h-4" />
                       <span>{{ job.location }}</span>
                     </div>
+                    <div *ngIf="job.workType" class="flex items-center gap-1">
+                      <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{{ job.workType }}</span>
+                    </div>
+                    <div *ngIf="job.category" class="flex items-center gap-1">
+                      <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">{{ job.category }}</span>
+                    </div>
                     <div class="flex items-center gap-1" *ngIf="job.salary">
                       <lucide-dollar-sign class="w-4 h-4" />
                       <span>₾{{ job.salary }}</span>
@@ -226,8 +259,8 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
               <div class="flex gap-2">
                 <button
-                  (click)="viewApplications(job.id!)"
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                    (click)="viewApplications(job.id!)"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                   <lucide-eye class="w-4 h-4" />
                   View Applications
                 </button>
@@ -244,8 +277,8 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
               <h3 class="text-xl font-bold text-slate-900">Applications</h3>
               <button
-                (click)="closeApplicationsModal()"
-                class="text-slate-400 hover:text-slate-600">
+                  (click)="closeApplicationsModal()"
+                  class="text-slate-400 hover:text-slate-600">
                 <lucide-x-circle class="w-6 h-6" />
               </button>
             </div>
@@ -258,7 +291,7 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
               <div *ngIf="applications.length === 0" class="text-center py-8 text-slate-600">
                 No applications received yet.
               </div>
-              <div *ngFor="let app of applications" 
+              <div *ngFor="let app of applications"
                    class="border border-slate-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow bg-white">
                 <div class="flex items-start justify-between mb-3">
                   <div class="flex-1">
@@ -328,6 +361,8 @@ export class CompanyDashboardComponent implements OnInit {
     requirements: '',
     location: '',
     salary: undefined,
+    workType: '',
+    category: '',
     applicationDeadline: ''
   };
 
@@ -366,33 +401,33 @@ export class CompanyDashboardComponent implements OnInit {
     console.log('🔍 Loading jobs for user:', user);
     console.log('🔍 User ID:', user?.id);
     console.log('🔍 User Role:', user?.role);
-    
+
     this.jobService.getAllJobs().subscribe({
       next: (jobs: Job[]) => {
         console.log('✅ Received jobs from API:', jobs.length, 'jobs');
         console.log('📋 Jobs details:', jobs.map(j => ({ id: j.id, title: j.title, createdBy: (j as any).createdBy })));
-        
+
         // CRITICAL: Client-side filter for HR users - only show jobs created by current user
         // This is a safety net in case backend filtering fails
         if (user?.id && user?.role === 1) { // Role 1 = HR
           const originalCount = jobs.length;
           const userId = Number(user.id); // Ensure it's a number
           const originalJobs = [...jobs]; // Keep a copy for logging
-          
+
           // Filter jobs - handle both camelCase (createdBy) and PascalCase (CreatedBy)
           jobs = jobs.filter(j => {
             const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
             const jobCreatedBy = Number(createdBy);
             return !isNaN(jobCreatedBy) && jobCreatedBy === userId;
           });
-          
+
           console.log(`🔒 HR USER FILTER: Filtered from ${originalCount} to ${jobs.length} jobs (user ID: ${userId}, type: ${typeof userId})`);
-          console.log(`📊 Filtered Jobs CreatedBy values:`, jobs.map(j => ({ 
-            id: j.id, 
-            createdBy: (j as any).createdBy ?? (j as any).CreatedBy, 
-            type: typeof ((j as any).createdBy ?? (j as any).CreatedBy) 
+          console.log(`📊 Filtered Jobs CreatedBy values:`, jobs.map(j => ({
+            id: j.id,
+            createdBy: (j as any).createdBy ?? (j as any).CreatedBy,
+            type: typeof ((j as any).createdBy ?? (j as any).CreatedBy)
           })));
-          
+
           if (originalCount !== jobs.length) {
             const removedJobs = originalJobs.filter(j => {
               const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
@@ -400,17 +435,17 @@ export class CompanyDashboardComponent implements OnInit {
               return isNaN(jobCreatedBy) || jobCreatedBy !== userId;
             });
             console.warn(`⚠️ Backend returned ${originalCount - jobs.length} jobs from other users! Filtered them out.`);
-            console.warn('Removed jobs:', removedJobs.map(j => ({ 
-              id: j.id, 
-              title: j.title, 
-              createdBy: (j as any).createdBy ?? (j as any).CreatedBy 
+            console.warn('Removed jobs:', removedJobs.map(j => ({
+              id: j.id,
+              title: j.title,
+              createdBy: (j as any).createdBy ?? (j as any).CreatedBy
             })));
           }
         }
-        
+
         this.myJobs = jobs;
         this.isLoadingJobs = false;
-        
+
         // Log which jobs belong to current user
         if (user?.id) {
           // Check both camelCase and PascalCase field names
@@ -425,14 +460,14 @@ export class CompanyDashboardComponent implements OnInit {
           console.log('👤 My jobs (createdBy=' + user.id + '):', myJobs.length);
           console.log('👥 Other users\' jobs:', otherJobs.length);
           if (otherJobs.length > 0) {
-            console.warn('⚠️ WARNING: Showing jobs from other users!', otherJobs.map(j => ({ 
-              id: j.id, 
-              title: j.title, 
-              createdBy: (j as any).createdBy ?? (j as any).CreatedBy 
+            console.warn('⚠️ WARNING: Showing jobs from other users!', otherJobs.map(j => ({
+              id: j.id,
+              title: j.title,
+              createdBy: (j as any).createdBy ?? (j as any).CreatedBy
             })));
           }
         }
-        
+
         // Load application counts for all jobs
         this.loadApplicationStats();
       },
@@ -446,8 +481,9 @@ export class CompanyDashboardComponent implements OnInit {
 
   createJob() {
     // Validate required fields
-    if (!this.newJob.title || !this.newJob.description || !this.newJob.requirements || !this.newJob.location) {
-      this.errorMessage = 'Please fill in all required fields (Title, Description, Requirements, Location)';
+    if (!this.newJob.title || !this.newJob.description || !this.newJob.requirements ||
+        !this.newJob.location || !this.newJob.workType || !this.newJob.category) {
+      this.errorMessage = 'Please fill in all required fields (Title, Description, Requirements, Location, Work Type, Category)';
       return;
     }
 
@@ -462,9 +498,11 @@ export class CompanyDashboardComponent implements OnInit {
       requirements: this.newJob.requirements.trim(),
       location: this.newJob.location.trim(),
       salary: this.newJob.salary || undefined,
-      applicationDeadline: this.newJob.applicationDeadline && this.newJob.applicationDeadline.trim() 
-        ? new Date(this.newJob.applicationDeadline).toISOString() 
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Default to 30 days from now
+      workType: this.newJob.workType.trim(),
+      category: this.newJob.category.trim(),
+      applicationDeadline: this.newJob.applicationDeadline && this.newJob.applicationDeadline.trim()
+          ? new Date(this.newJob.applicationDeadline).toISOString()
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Default to 30 days from now
     };
 
     console.log('Creating job with data:', jobData);
@@ -481,6 +519,8 @@ export class CompanyDashboardComponent implements OnInit {
           requirements: '',
           location: '',
           salary: undefined,
+          workType: '',
+          category: '',
           applicationDeadline: '',
         };
 
@@ -501,7 +541,7 @@ export class CompanyDashboardComponent implements OnInit {
         if (error.error?.errors) {
           const validationErrors = error.error.errors;
           const errorMessages: string[] = [];
-          
+
           Object.keys(validationErrors).forEach(key => {
             if (Array.isArray(validationErrors[key])) {
               errorMessages.push(...validationErrors[key]);
@@ -509,7 +549,7 @@ export class CompanyDashboardComponent implements OnInit {
               errorMessages.push(validationErrors[key]);
             }
           });
-          
+
           if (errorMessages.length > 0) {
             message += '\n\nValidation errors:\n' + errorMessages.join('\n');
           }
@@ -557,7 +597,7 @@ export class CompanyDashboardComponent implements OnInit {
     const userId = Number(user.id);
     const jobCreatedByRaw = (job as any).createdBy ?? (job as any).CreatedBy;
     const jobCreatedBy = jobCreatedByRaw != null ? Number(jobCreatedByRaw) : null;
-    
+
     console.log('🔍 ViewApplications Debug:', {
       jobId,
       userId,
@@ -567,7 +607,7 @@ export class CompanyDashboardComponent implements OnInit {
       jobTitle: job.title,
       comparison: jobCreatedBy === userId
     });
-    
+
     if (jobCreatedBy === null || isNaN(jobCreatedBy) || jobCreatedBy !== userId) {
       console.error('❌ Job ownership check failed:', {
         jobId,
@@ -583,9 +623,9 @@ export class CompanyDashboardComponent implements OnInit {
     this.selectedJobId = jobId;
     this.showApplications = true;
     this.errorMessage = ''; // Clear any previous errors
-    
+
     console.log('✅ Job ownership verified, calling API for job:', jobId);
-    
+
     this.jobApplicationService.getApplicationsByJobId(jobId).subscribe({
       next: (apps: Application[]) => {
         console.log('✅ Applications loaded successfully:', apps.length);
@@ -596,22 +636,22 @@ export class CompanyDashboardComponent implements OnInit {
         console.error('❌ Error loading applications:', error);
         const status = error?.status ?? error?.originalError?.status ?? 0;
         let message = 'Failed to load applications. ';
-        
+
         // Try to extract server message
-        const serverMessage = error?.originalError?.error?.message || 
-                             error?.error?.message || 
-                             error?.message;
-        
+        const serverMessage = error?.originalError?.error?.message ||
+            error?.error?.message ||
+            error?.message;
+
         if (status === 403) {
           if (serverMessage) {
             message = serverMessage;
           } else {
             message = `You do not have permission to view applications for this job. ` +
-                     `This might be due to:\n` +
-                     `- Your session expired (try logging out and back in)\n` +
-                     `- The job doesn't belong to your account\n` +
-                     `- Authorization token issue\n\n` +
-                     `Your User ID: ${userId}, Job ID: ${jobId}, Job CreatedBy: ${jobCreatedBy}`;
+                `This might be due to:\n` +
+                `- Your session expired (try logging out and back in)\n` +
+                `- The job doesn't belong to your account\n` +
+                `- Authorization token issue\n\n` +
+                `Your User ID: ${userId}, Job ID: ${jobId}, Job CreatedBy: ${jobCreatedBy}`;
           }
         } else if (status === 404) {
           message = 'Job not found.';
@@ -622,7 +662,7 @@ export class CompanyDashboardComponent implements OnInit {
         } else if (serverMessage) {
           message = serverMessage;
         }
-        
+
         this.errorMessage = message;
         this.applications = [];
         this.showApplications = false; // Close the modal on error
@@ -635,16 +675,16 @@ export class CompanyDashboardComponent implements OnInit {
     let totalApps = 0;
     let pendingApps = 0;
     let loadedCount = 0;
-    
+
     if (this.myJobs.length === 0) {
       this.totalApplications = 0;
       this.pendingApplications = 0;
       return;
     }
-    
+
     const currentUser = this.authService.getCurrentUser();
     const currentUserId = currentUser?.id;
-    
+
     this.myJobs.forEach(job => {
       if (job.id) {
         // Double-check ownership before making the request
@@ -656,15 +696,15 @@ export class CompanyDashboardComponent implements OnInit {
             this.totalApplications = totalApps;
             this.pendingApplications = pendingApps;
           }
-          return; // Skip this job
+          return;
         }
-        
+
         this.jobApplicationService.getApplicationsByJobId(job.id).subscribe({
           next: (apps: Application[]) => {
             totalApps += apps.length;
             pendingApps += apps.filter(app => app.status === 0).length;
             loadedCount++;
-            
+
             // Update stats when all jobs are loaded
             if (loadedCount === this.myJobs.length) {
               this.totalApplications = totalApps;
@@ -679,7 +719,7 @@ export class CompanyDashboardComponent implements OnInit {
               console.error(`Error loading applications for job ${job.id}:`, error);
             }
             loadedCount++;
-            
+
             // Update stats even if some requests fail
             if (loadedCount === this.myJobs.length) {
               this.totalApplications = totalApps;

@@ -9,7 +9,9 @@ export interface Job {
   description: string;
   requirements: string;
   location: string;
-  salary?: number;
+  salary?: string; 
+  workType?: string; // remote, onsite, hybrid
+  category?: string;
   status: number; // 0 = Active, 1 = Closed, 2 = Cancelled
   applicationDeadline: string;
   createdAt?: string;
@@ -22,7 +24,7 @@ export interface CreateJobRequest {
   description: string;
   requirements: string;
   location: string;
-  salary?: string; // Changed to string to match backend
+  salary?: string;
   workType?: string; // remote, onsite, hybrid
   category?: string;
   applicationDeadline: string;
