@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job, CreateJobRequest } from '../../services/job.service';
 import { JobApplicationService, Application } from '../../services/job-application.service';
-import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut, AlertCircle } from 'lucide-angular';
+import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut, AlertCircle, User } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -252,12 +252,15 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
               <p class="text-slate-400 mb-4 line-clamp-2">{{ job.description }}</p>
 
-              <div class="flex gap-2">
+              <div class="flex gap-2 items-center">
                 <button
                     (click)="viewApplications(job.id!)"
                     class="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
                   <lucide-eye class="w-4 h-4" />
                   View Applications
+                  <span *ngIf="getApplicationCount(job.id!) > 0" class="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-semibold">
+                    {{ getApplicationCount(job.id!) }}
+                  </span>
                 </button>
               </div>
             </div>
@@ -267,53 +270,106 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
         <div *ngIf="showApplications"
              (click)="closeApplicationsModal()"
              class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div (click)="$event.stopPropagation()" class="bg-slate-800 rounded-lg border border-slate-700 shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div class="sticky top-0 bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
-              <h3 class="text-xl font-bold text-white">Applications</h3>
+          <div (click)="$event.stopPropagation()" class="bg-slate-800 rounded-lg border border-slate-700 shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between z-10">
+              <div>
+                <h3 class="text-xl font-bold text-white">{{ selectedJobTitle }}</h3>
+                <p class="text-sm text-slate-400 mt-1">Applications for this job</p>
+              </div>
               <button
                   (click)="closeApplicationsModal()"
-                  class="text-slate-400 hover:text-white">
+                  class="text-slate-400 hover:text-white transition-colors">
                 <lucide-x-circle class="w-6 h-6" />
               </button>
             </div>
             <div class="p-6">
-              <div class="mb-4 pb-4 border-b border-slate-700">
-                <div class="text-lg font-semibold text-white">
-                  Total Applications: <span class="text-cyan-400">{{ applications.length }}</span>
-                </div>
-              </div>
-              <div *ngIf="applications.length === 0" class="text-center py-8 text-slate-400">
-                No applications received yet.
-              </div>
-              <div *ngFor="let app of applications"
-                   class="border border-slate-700 rounded-lg p-4 mb-4 bg-slate-900/50">
-                <div class="flex items-start justify-between mb-3">
-                  <div class="flex-1">
-                    <div class="font-semibold text-white mb-2">Application #{{ app.id }}</div>
-                    <div *ngIf="app.applicant" class="space-y-1">
-                      <div class="text-sm text-slate-300">
-                        <strong>Applicant:</strong> {{ app.applicant.firstName }} {{ app.applicant.lastName }}
-                      </div>
-                      <div class="text-sm text-slate-400">
-                        <strong>Email:</strong> {{ app.applicant.email }}
-                      </div>
-                      <div *ngIf="app.applicant.phoneNumber" class="text-sm text-slate-400">
-                        <strong>Phone:</strong> {{ app.applicant.phoneNumber }}
-                      </div>
+              <div class="mb-6 pb-4 border-b border-slate-700">
+                <div class="flex items-center justify-between">
+                  <div class="text-lg font-semibold text-white">
+                    Total Applications: <span class="text-cyan-400">{{ applications.length }}</span>
+                  </div>
+                  <div class="flex gap-4 text-sm">
+                    <div class="text-slate-400">
+                      Pending: <span class="text-yellow-400 font-semibold">{{ getStatusCount(0) }}</span>
                     </div>
-                    <div *ngIf="!app.applicant" class="text-sm text-slate-400">
-                      Applicant ID: {{ app.applicantId }}
+                    <div class="text-slate-400">
+                      Under Review: <span class="text-cyan-400 font-semibold">{{ getStatusCount(1) }}</span>
                     </div>
-                    <div class="text-sm text-slate-500 mt-2">
-                      Applied: {{ app.appliedAt | date:'medium' }}
+                    <div class="text-slate-400">
+                      Approved: <span class="text-green-400 font-semibold">{{ getStatusCount(2) }}</span>
+                    </div>
+                    <div class="text-slate-400">
+                      Rejected: <span class="text-red-400 font-semibold">{{ getStatusCount(3) }}</span>
                     </div>
                   </div>
-                  <span [class]="getApplicationStatusClass(app.status)" class="px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-4">
-                    {{ getApplicationStatusText(app.status) }}
-                  </span>
                 </div>
-                <div *ngIf="app.resume" class="mt-3 pt-3 border-t border-slate-700 text-sm text-slate-400">
-                  <strong>Resume:</strong> {{ app.resume }}
+              </div>
+              <div *ngIf="applications.length === 0" class="text-center py-12 text-slate-400">
+                <lucide-users class="w-16 h-16 mx-auto mb-4 text-slate-600" />
+                <p class="text-lg">No applications received yet.</p>
+              </div>
+              <div *ngFor="let app of applications"
+                   class="border border-slate-700 rounded-lg p-5 mb-4 bg-slate-900/50 hover:border-cyan-500/50 transition-all">
+                <div class="flex items-start justify-between mb-4">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-3">
+                      <div class="font-semibold text-white text-lg">Application #{{ app.id }}</div>
+                      <span [class]="getApplicationStatusClass(app.status)" class="px-3 py-1 rounded-full text-xs font-medium">
+                        {{ getApplicationStatusText(app.status) }}
+                      </span>
+                    </div>
+                    <div *ngIf="app.applicant" class="space-y-2 mb-3">
+                      <div class="text-sm">
+                        <span class="text-slate-400">Applicant:</span>
+                        <span class="text-white font-medium ml-2">{{ app.applicant.firstName }} {{ app.applicant.lastName }}</span>
+                      </div>
+                      <div class="text-sm">
+                        <span class="text-slate-400">Email:</span>
+                        <span class="text-slate-300 ml-2">{{ app.applicant.email }}</span>
+                      </div>
+                      <div *ngIf="app.applicant.phoneNumber" class="text-sm">
+                        <span class="text-slate-400">Phone:</span>
+                        <span class="text-slate-300 ml-2">{{ app.applicant.phoneNumber }}</span>
+                      </div>
+                    </div>
+                    <div *ngIf="!app.applicant" class="text-sm text-slate-400 mb-3">
+                      Applicant ID: {{ app.applicantId }}
+                    </div>
+                    <div class="text-sm text-slate-500">
+                      <lucide-calendar class="w-4 h-4 inline mr-1" />
+                      Applied: {{ app.appliedAt | date:'medium' }}
+                    </div>
+                    <div *ngIf="app.reviewedAt" class="text-sm text-slate-500 mt-1">
+                      <lucide-calendar class="w-4 h-4 inline mr-1" />
+                      Reviewed: {{ app.reviewedAt | date:'medium' }}
+                    </div>
+                  </div>
+                </div>
+                <div *ngIf="app.resume" class="mt-4 pt-4 border-t border-slate-700">
+                  <div class="text-sm font-medium text-slate-300 mb-2">Resume / Cover Letter:</div>
+                  <div class="text-sm text-slate-400 bg-slate-800/50 rounded-lg p-4 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {{ app.resume }}
+                  </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-slate-700">
+                  <div class="flex items-center gap-3">
+                    <label class="text-sm font-medium text-slate-300">Update Status:</label>
+                    <select
+                        [(ngModel)]="app.status"
+                        (ngModelChange)="updateApplicationStatus(app.id, $event)"
+                        [disabled]="isUpdatingStatus(app.id)"
+                        class="px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                      <option [ngValue]="0">Pending</option>
+                      <option [ngValue]="1">Under Review</option>
+                      <option [ngValue]="2">Approved</option>
+                      <option [ngValue]="3">Rejected</option>
+                      <option [ngValue]="4">Withdrawn</option>
+                    </select>
+                    <div *ngIf="isUpdatingStatus(app.id)" class="flex items-center gap-2 text-sm text-slate-400">
+                      <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
+                      <span>Updating...</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -342,9 +398,12 @@ export class CompanyDashboardComponent implements OnInit {
   isCreating = false;
   showApplications = false;
   selectedJobId = 0;
+  selectedJobTitle = '';
   applications: Application[] = [];
   totalApplications = 0;
   pendingApplications = 0;
+  jobApplicationCounts: Map<number, number> = new Map(); // Map to store application counts per job
+  updatingStatus: Map<number, boolean> = new Map(); // Track which application is being updated
   errorMessage = '';
   successMessage = '';
   minDate = new Date().toISOString().split('T')[0];
@@ -601,6 +660,7 @@ export class CompanyDashboardComponent implements OnInit {
     }
 
     this.selectedJobId = jobId;
+    this.selectedJobTitle = job.title;
     this.showApplications = true;
     this.errorMessage = '';
 
@@ -657,6 +717,7 @@ export class CompanyDashboardComponent implements OnInit {
     if (this.myJobs.length === 0) {
       this.totalApplications = 0;
       this.pendingApplications = 0;
+      this.jobApplicationCounts.clear();
       return;
     }
 
@@ -668,6 +729,7 @@ export class CompanyDashboardComponent implements OnInit {
         const jobCreatedBy = (job as any).createdBy ?? (job as any).CreatedBy;
         if (currentUserId && jobCreatedBy !== currentUserId) {
           console.warn(`Skipping job ${job.id} - createdBy (${jobCreatedBy}) doesn't match current user (${currentUserId})`);
+          this.jobApplicationCounts.set(job.id, 0);
           loadedCount++;
           if (loadedCount === this.myJobs.length) {
             this.totalApplications = totalApps;
@@ -678,8 +740,10 @@ export class CompanyDashboardComponent implements OnInit {
 
         this.jobApplicationService.getApplicationsByJobId(job.id).subscribe({
           next: (apps: Application[]) => {
-            totalApps += apps.length;
+            const count = apps.length;
+            totalApps += count;
             pendingApps += apps.filter(app => app.status === 0).length;
+            this.jobApplicationCounts.set(job.id, count);
             loadedCount++;
 
             if (loadedCount === this.myJobs.length) {
@@ -693,6 +757,7 @@ export class CompanyDashboardComponent implements OnInit {
             } else {
               console.error(`Error loading applications for job ${job.id}:`, error);
             }
+            this.jobApplicationCounts.set(job.id, 0);
             loadedCount++;
 
             if (loadedCount === this.myJobs.length) {
@@ -716,8 +781,90 @@ export class CompanyDashboardComponent implements OnInit {
     }
   }
 
+  getApplicationCount(jobId: number): number {
+    return this.jobApplicationCounts.get(jobId) || 0;
+  }
+
+  getStatusCount(status: number): number {
+    return this.applications.filter(app => app.status === status).length;
+  }
+
+  isUpdatingStatus(applicationId: number): boolean {
+    return this.updatingStatus.get(applicationId) || false;
+  }
+
+  updateApplicationStatus(applicationId: number, newStatus: number) {
+    const application = this.applications.find(app => app.id === applicationId);
+    if (!application) {
+      this.errorMessage = 'Application not found.';
+      return;
+    }
+
+    if (application.status === newStatus) {
+      return;
+    }
+
+    const oldStatus = application.status;
+
+    this.updatingStatus.set(applicationId, true);
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.jobApplicationService.updateApplicationStatus(applicationId, newStatus).subscribe({
+      next: (response) => {
+        console.log('Application status updated successfully:', response);
+        
+        application.status = newStatus;
+        
+        application.reviewedAt = new Date().toISOString();
+
+        this.jobApplicationCounts.set(this.selectedJobId, this.applications.length);
+        this.loadApplicationStats();
+
+        this.successMessage = `Application status updated to "${this.getApplicationStatusText(newStatus)}"`;
+        this.updatingStatus.set(applicationId, false);
+
+        setTimeout(() => {
+          this.successMessage = '';
+        }, 3000);
+      },
+      error: (error: any) => {
+        console.error('Error updating application status:', error);
+        application.status = oldStatus;
+        
+        let message = 'Failed to update application status. ';
+        const status = error?.status ?? error?.originalError?.status ?? 0;
+        const serverMessage = error?.originalError?.error?.message ||
+            error?.error?.message ||
+            error?.message;
+
+        if (status === 403) {
+          message = 'You do not have permission to update this application.';
+        } else if (status === 404) {
+          message = 'Application not found.';
+        } else if (status === 401) {
+          message = 'Your session has expired. Please logout and login again.';
+        } else if (status === 0) {
+          message = 'Cannot connect to server. Please check if the backend is running.';
+        } else if (serverMessage) {
+          message = serverMessage;
+        }
+
+        this.errorMessage = message;
+        this.updatingStatus.set(applicationId, false);
+
+        setTimeout(() => {
+          this.errorMessage = '';
+        }, 5000);
+      }
+    });
+  }
+
   closeApplicationsModal() {
     this.showApplications = false;
+    this.selectedJobId = 0;
+    this.selectedJobTitle = '';
+    this.applications = [];
   }
 
   getActiveJobsCount(): number {

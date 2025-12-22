@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
 import { JobApplicationService, Application, CreateApplicationRequest } from '../../services/job-application.service';
-import { LucideAngularModule, Search } from 'lucide-angular';
+import { LucideAngularModule, Search, Calendar } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -246,19 +246,30 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
           <div *ngIf="!isLoadingApplications" class="space-y-4">
             <div *ngFor="let app of myApplications"
-                 class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+                 class="border border-slate-700 rounded-lg p-6 bg-slate-900/50 hover:border-cyan-500/50 transition-all cursor-pointer"
+                 (click)="navigateToJobDetails(app.jobId)">
               <div class="flex items-start justify-between mb-4">
-                <div>
-                  <h3 class="text-lg font-semibold text-white">Application #{{ app.id }}</h3>
-                  <p class="text-sm text-slate-400">Job ID: {{ app.jobId }}</p>
-                  <p class="text-sm text-slate-400">Applied: {{ app.appliedAt | date:'medium' }}</p>
+                <div class="flex-1">
+                  <h3 class="text-lg font-semibold text-white mb-2">
+                    {{ getJobForApplication(app.jobId)?.title || 'Loading job details...' }}
+                  </h3>
+                  <p *ngIf="getJobForApplication(app.jobId)?.description" class="text-sm text-slate-400 mb-3 line-clamp-2">
+                    {{ getJobForApplication(app.jobId)?.description }}
+                  </p>
+                  <div class="flex flex-wrap gap-4 text-sm text-slate-400">
+                    <div class="flex items-center gap-1">
+                      <lucide-calendar class="w-4 h-4" />
+                      <span>Applied: {{ app.appliedAt | date:'medium' }}</span>
+                    </div>
+                    <div *ngIf="getJobForApplication(app.jobId)?.applicationDeadline" class="flex items-center gap-1">
+                      <lucide-calendar class="w-4 h-4" />
+                      <span>Deadline: {{ getJobForApplication(app.jobId)?.applicationDeadline | date:'medium' }}</span>
+                    </div>
+                  </div>
                 </div>
-                <span [class]="getStatusBadgeClass(app.status)" class="px-3 py-1 rounded-full text-sm font-medium">
+                <span [class]="getStatusBadgeClass(app.status)" class="px-3 py-1 rounded-full text-sm font-medium ml-4 flex-shrink-0">
                   {{ getStatusText(app.status) }}
                 </span>
-              </div>
-              <div *ngIf="app.resume" class="text-sm text-slate-400">
-                <strong>Resume:</strong> {{ app.resume }}
               </div>
             </div>
           </div>
@@ -278,6 +289,7 @@ export class JobSeekerDashboardComponent implements OnInit {
   availableJobs: Job[] = [];
   filteredJobs: Job[] = [];
   myApplications: Application[] = [];
+  applicationJobs: Map<number, Job> = new Map(); // Map to store job details by jobId
   isLoadingJobs = false;
   isLoadingApplications = false;
   activeTab: 'jobs' | 'applications' = 'jobs';
@@ -319,6 +331,11 @@ export class JobSeekerDashboardComponent implements OnInit {
         this.availableJobs = jobs;
         this.filteredJobs = jobs;
         this.filterJobs();
+        jobs.forEach(job => {
+          if (this.myApplications.some(app => app.jobId === job.id)) {
+            this.applicationJobs.set(job.id, job);
+          }
+        });
         this.isLoadingJobs = false;
       },
       error: (error: any) => {
@@ -398,6 +415,7 @@ export class JobSeekerDashboardComponent implements OnInit {
     this.jobApplicationService.getApplicationsByApplicantId(user.id).subscribe({
       next: (apps: Application[]) => {
         this.myApplications = apps;
+        this.loadJobDetailsForApplications(apps);
         this.isLoadingApplications = false;
       },
       error: (error: any) => {
@@ -405,6 +423,33 @@ export class JobSeekerDashboardComponent implements OnInit {
         this.isLoadingApplications = false;
       }
     });
+  }
+  loadJobDetailsForApplications(applications: Application[]) {
+    const uniqueJobIds = [...new Set(applications.map(app => app.jobId))];
+    
+    uniqueJobIds.forEach(jobId => {
+      const existingJob = this.availableJobs.find(job => job.id === jobId);
+      if (existingJob) {
+        this.applicationJobs.set(jobId, existingJob);
+      } else {
+        this.jobService.getJobById(jobId).subscribe({
+          next: (job: Job) => {
+            this.applicationJobs.set(jobId, job);
+          },
+          error: (error: any) => {
+            console.error(`Error loading job ${jobId}:`, error);
+          }
+        });
+      }
+    });
+  }
+
+  getJobForApplication(jobId: number): Job | null {
+    return this.applicationJobs.get(jobId) || null;
+  }
+
+  navigateToJobDetails(jobId: number) {
+    this.router.navigate(['/apply', jobId]);
   }
 
   navigateToApply(jobId: number) {
