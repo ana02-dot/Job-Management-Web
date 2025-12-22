@@ -66,7 +66,7 @@ public class JobsController : ControllerBase
             Log.Information("{Role} user {UserId} - returning all jobs", resolvedRole, currentUserId);
             jobs = await _jobRepository.GetAllAsync();
         }
-        else // HR
+        else 
         {
             Log.Information("HR user {UserId} - filtering jobs by CreatedBy={CreatedBy}", currentUserId, currentUserId);
             jobs = await _jobRepository.GetByCreatorAsync(currentUserId);

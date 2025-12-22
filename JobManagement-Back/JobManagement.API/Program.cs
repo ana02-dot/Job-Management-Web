@@ -63,8 +63,6 @@ builder.Services.AddAuthentication(options =>
     {
         options.SaveToken = true;
         options.RequireHttpsMetadata = false;
-        // Don't map inbound claims to Microsoft-specific types
-        // This ensures ClaimTypes.Role is read as set in JwtService
         options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -76,12 +74,10 @@ builder.Services.AddAuthentication(options =>
             ValidAudience = jwtSettings?.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings?.SecretKey ?? "")),
             ClockSkew = TimeSpan.Zero,
-            // Configure claim types for proper role resolution
             NameClaimType = ClaimTypes.NameIdentifier,
             RoleClaimType = ClaimTypes.Role
         };
         
-        // This event is crucial for ensuring the role claim is correctly processed
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>
@@ -93,27 +89,21 @@ builder.Services.AddAuthentication(options =>
                     return;
                 }
 
-                // Ensure ClaimTypes.Role is present. If not, try to add it from "role_value" or "role"
                 var existingRoleClaim = claimsIdentity.FindFirst(ClaimTypes.Role);
                 if (existingRoleClaim == null)
                 {
                     var roleValueClaim = claimsIdentity.FindFirst("role_value") ?? claimsIdentity.FindFirst("role");
                     if (roleValueClaim != null)
                     {
-                        // Try to parse the role value
                         string roleName = roleValueClaim.Value;
                         if (int.TryParse(roleValueClaim.Value, out int roleInt))
                         {
-                            // Convert numeric value to enum name (0=Admin, 1=HR, 2=Applicant)
                             roleName = ((UserRole)roleInt).ToString();
                         }
-                        // Add the role claim - this makes it accessible via IsInRole
-                        // Use the standard ClaimTypes.Role so it works with IsInRole
                         claimsIdentity.AddClaim(new Claim(ClaimTypes.Role, roleName));
                     }
                     else
                     {
-                        // Log all claims for debugging
                         var allClaimTypes = string.Join(", ", claimsIdentity.Claims.Select(c => c.Type));
                         Serilog.Log.Warning("OnTokenValidated: No role information found in token. Available claim types: {ClaimTypes}", allClaimTypes);
                         context.Fail("No role information found in token.");
@@ -122,7 +112,6 @@ builder.Services.AddAuthentication(options =>
                 }
                 else
                 {
-                    // Verify the role claim is valid
                     var roleValue = existingRoleClaim.Value;
                     if (!Enum.TryParse<UserRole>(roleValue, true, out _) && !int.TryParse(roleValue, out int roleInt))
                     {
@@ -143,21 +132,17 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    // Basic role policies
     options.AddPolicy("AdminOnly", policy => policy.RequireRole(UserRole.Admin.ToString()));
     options.AddPolicy("HROnly", policy => policy.RequireRole(UserRole.HR.ToString()));
     
-    // ApplicantOnly policy with robust role checking
     options.AddPolicy("ApplicantOnly", policy =>
         policy.RequireAssertion(context =>
         {
-            // First try IsInRole (should work if role claim is properly set)
             if (context.User.IsInRole(UserRole.Applicant.ToString()))
             {
                 return true;
             }
             
-            // Fallback: Check role claim directly
             var roleClaim = context.User.FindFirst(ClaimTypes.Role)?.Value;
             if (!string.IsNullOrEmpty(roleClaim))
             {
@@ -167,7 +152,6 @@ builder.Services.AddAuthorization(options =>
                 }
             }
             
-            // Last resort: Check role_value claim
             var roleValueClaim = context.User.FindFirst("role_value");
             if (roleValueClaim != null && int.TryParse(roleValueClaim.Value, out int roleInt))
             {
@@ -175,7 +159,6 @@ builder.Services.AddAuthorization(options =>
                 return role == UserRole.Applicant;
             }
             
-            // Also check for "role" claim (without ClaimTypes prefix)
             var simpleRoleClaim = context.User.FindFirst("role");
             if (simpleRoleClaim != null)
             {
@@ -195,19 +178,15 @@ builder.Services.AddAuthorization(options =>
     
     options.AddPolicy("AdminOrHR", policy => policy.RequireRole(UserRole.Admin.ToString(), UserRole.HR.ToString()));
     
-    // Policy for Admin or HR to view applications for jobs
-    // Use RequireAssertion with IsInRole check (more reliable with MapInboundClaims = false)
     options.AddPolicy("AdminOrHROnly", policy =>
         policy.RequireAssertion(context =>
         {
-            // First try IsInRole (should work if role claim is properly set)
             if (context.User.IsInRole(UserRole.Admin.ToString()) || 
                 context.User.IsInRole(UserRole.HR.ToString()))
             {
                 return true;
             }
             
-            // Fallback: Check role claim directly
             var roleClaim = context.User.FindFirst(ClaimTypes.Role)?.Value;
             if (!string.IsNullOrEmpty(roleClaim))
             {
@@ -215,7 +194,6 @@ builder.Services.AddAuthorization(options =>
                        roleClaim.Equals(UserRole.HR.ToString(), StringComparison.OrdinalIgnoreCase);
             }
             
-            // Last resort: Check role_value claim
             var roleValueClaim = context.User.FindFirst("role_value");
             if (roleValueClaim != null && int.TryParse(roleValueClaim.Value, out int roleInt))
             {
@@ -226,7 +204,6 @@ builder.Services.AddAuthorization(options =>
             return false;
         }));
     
-    // Policy for Applicant to view their own applications, or Admin/HR to view any
     options.AddPolicy("ApplicantOrAdminOrHROwns", policy =>
         policy.RequireAssertion(context =>
         {
@@ -236,11 +213,9 @@ builder.Services.AddAuthorization(options =>
                 return false;
             }
 
-            // Check role claim directly (more reliable than IsInRole)
             var roleClaim = context.User.FindFirst(ClaimTypes.Role)?.Value;
             if (string.IsNullOrEmpty(roleClaim))
             {
-                // Fallback: try to find role from alternative claim names
                 roleClaim = context.User.FindFirst("role_value")?.Value;
                 if (!string.IsNullOrEmpty(roleClaim) && int.TryParse(roleClaim, out int roleInt))
                 {
@@ -253,14 +228,12 @@ builder.Services.AddAuthorization(options =>
                 return false;
             }
 
-            // Admin/HR can view any
             if (roleClaim.Equals(UserRole.Admin.ToString(), StringComparison.OrdinalIgnoreCase) ||
                 roleClaim.Equals(UserRole.HR.ToString(), StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            // For Applicant, the controller will check if currentUserId == applicantId
             if (roleClaim.Equals(UserRole.Applicant.ToString(), StringComparison.OrdinalIgnoreCase))
             {
                 return true;

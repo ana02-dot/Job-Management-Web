@@ -36,7 +36,7 @@ public class UserController : ControllerBase
     /// <response code="200">Returns the user information</response>
     /// <response code="404">If the user is not found</response>
     [HttpGet("{id}")]
-    //[Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager")]
     [ProducesResponseType(typeof(User), 200)]
     [ProducesResponseType(404)]
     public async Task<ActionResult<UserInfo>> GetUser(int id)
@@ -67,19 +67,16 @@ public class UserController : ControllerBase
     [ProducesResponseType(400)]
     public async Task<ActionResult<UserRegistrationResponse>> RegisterUser([FromBody] UserRegistrationRequest request)
     {
-        // Check if email already exists
         if (await _userRepository.EmailExistsAsync(request.Email))
         {
             return BadRequest(new { Message = "Email already exists" });
         }
 
-        // Check if phone number already exists
         if (await _userRepository.PhoneNumberExistsAsync(request.PhoneNumber))
         {
             return BadRequest(new { Message = "Phone number already exists" });
         }
 
-        // Create user entity from request
         var user = new User
         {
             FirstName = request.FirstName,
@@ -111,7 +108,7 @@ public class UserController : ControllerBase
     /// <response code="200">User deleted successfully</response>
     /// <response code="404">If the user is not found</response>
     [HttpDelete("{id}")]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(200)]
     [ProducesResponseType(404)]
     [ProducesResponseType(401)]

@@ -34,7 +34,7 @@ public class JobApplicationController : ControllerBase
     /// <response code="200">Application submitted successfully</response>
     /// <response code="400">If the request data is invalid</response>
     [HttpPost("submit")]
-    [Authorize(Policy = "ApplicantOnly")] // Only applicants can submit applications
+    [Authorize(Policy = "ApplicantOnly")]
     [ProducesResponseType(typeof(ApplicationSubmissionResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
@@ -92,7 +92,7 @@ public class JobApplicationController : ControllerBase
         /// <response code="403">If the user does not have required role</response>
         /// <response code="404">If the job is not found</response>
         [HttpGet("job/{jobId}")]
-        [Authorize] // Require authentication - authorization logic is handled in the method
+        [Authorize]
         [ProducesResponseType(typeof(List<Applications>), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
@@ -107,11 +107,9 @@ public class JobApplicationController : ControllerBase
                 return Unauthorized(new { Message = "Invalid user authentication" });
             }
 
-            // Get the role claim - check both IsInRole and direct claim lookup for robustness
             var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
             var roleValueClaim = User.FindFirst("role_value")?.Value;
             
-            // Try to determine role from multiple sources
             UserRole? userRole = null;
             if (!string.IsNullOrEmpty(roleClaim))
             {
@@ -136,7 +134,6 @@ public class JobApplicationController : ControllerBase
             Log.Information("GetApplicationsByJob: User {UserId}, RoleClaim: {RoleClaim}, RoleValueClaim: {RoleValueClaim}, UserRole: {UserRole}, IsInRole(Admin): {IsInRoleAdmin}, IsInRole(HR): {IsInRoleHR}, IsAdmin: {IsAdmin}, IsHR: {IsHR}, JobId: {JobId}, AllClaims: {AllClaims}",
                 currentUserId, roleClaim, roleValueClaim, userRole?.ToString() ?? "null", isInRoleAdmin, isInRoleHR, isAdmin, isHR, jobId, allClaims);
 
-            // If policy passed but we can't determine role, something is wrong
             if (!isAdmin && !isHR)
             {
                 Log.Error("GetApplicationsByJob: User {UserId} is neither Admin nor HR. RoleClaim: {RoleClaim}, All claims: {Claims}",
@@ -144,12 +141,9 @@ public class JobApplicationController : ControllerBase
                 return StatusCode(403, new { Message = "You do not have permission to perform this action. Please ensure you are logged in as HR or Admin." });
             }
 
-            // Policy ensures user is Admin or HR. For HR users, verify they own the job.
-            // For Admin users, no ownership check needed - they can view any job's applications.
             if (!isAdmin)
             {
                 Log.Debug("GetApplicationsByJob: User is not Admin, performing HR ownership check for JobId {JobId}", jobId);
-                // If not Admin, must be HR (policy ensures this), so check ownership
                 var job = await _jobRepository.GetByIdAsync(jobId);
                 if (job == null)
                 {
@@ -205,142 +199,18 @@ public class JobApplicationController : ControllerBase
                 return Unauthorized(new { Message = "Invalid user authentication" });
             }
 
-            // Determine user role using comprehensive checking
-            // With MapInboundClaims = false, we need to check all possible claim type variations
-            string? roleClaim = null;
-            UserRole? userRole = null;
-            
-            // Log all claims first for debugging
-            var allClaimsList = User.Claims.Select(c => $"{c.Type}={c.Value}").ToList();
-            Log.Debug("GetApplicationsByApplicant: All claims for user {UserId}: {Claims}", currentUserId, string.Join(", ", allClaimsList));
-            
-            // Method 1: Try role_value claim first (numeric, most reliable)
-            var roleValueClaim = User.FindFirst("role_value");
-            if (roleValueClaim != null && int.TryParse(roleValueClaim.Value, out int roleInt))
-            {
-                userRole = (UserRole)roleInt;
-                roleClaim = userRole.ToString();
-                Log.Information("GetApplicationsByApplicant: Resolved role from role_value={RoleValue} -> {Role}", roleInt, userRole);
-            }
-            
-            // Method 2: Try ClaimTypes.Role (standard Microsoft claim type)
-            if (userRole == null)
-            {
-                roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
-                if (!string.IsNullOrEmpty(roleClaim))
-                {
-                    if (Enum.TryParse<UserRole>(roleClaim, true, out var parsedRole))
-                    {
-                        userRole = parsedRole;
-                        Log.Information("GetApplicationsByApplicant: Resolved role from ClaimTypes.Role={RoleClaim} -> {Role}", roleClaim, userRole);
-                    }
-                }
-            }
-            
-            // Method 3: Try full URI version of role claim (when MapInboundClaims = false, this might be the actual type)
-            if (userRole == null)
-            {
-                var fullUriRoleClaim = User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role");
-                if (fullUriRoleClaim != null)
-                {
-                    roleClaim = fullUriRoleClaim.Value;
-                    if (Enum.TryParse<UserRole>(roleClaim, true, out var parsedRoleUri))
-                    {
-                        userRole = parsedRoleUri;
-                        Log.Information("GetApplicationsByApplicant: Resolved role from full URI claim={RoleClaim} -> {Role}", roleClaim, userRole);
-                    }
-                    else if (int.TryParse(roleClaim, out int roleIntUri))
-                    {
-                        userRole = (UserRole)roleIntUri;
-                        roleClaim = userRole.ToString();
-                        Log.Information("GetApplicationsByApplicant: Resolved role from full URI claim (numeric)={RoleValue} -> {Role}", roleIntUri, userRole);
-                    }
-                }
-            }
-            
-            // Method 4: Try simple "role" claim
-            if (userRole == null)
-            {
-                var simpleRoleClaim = User.FindFirst("role");
-                if (simpleRoleClaim != null)
-                {
-                    if (int.TryParse(simpleRoleClaim.Value, out int roleIntSimple))
-                    {
-                        userRole = (UserRole)roleIntSimple;
-                        roleClaim = userRole.ToString();
-                        Log.Information("GetApplicationsByApplicant: Resolved role from role (numeric)={RoleValue} -> {Role}", roleIntSimple, userRole);
-                    }
-                    else if (Enum.TryParse<UserRole>(simpleRoleClaim.Value, true, out var parsedRoleSimple))
-                    {
-                        userRole = parsedRoleSimple;
-                        roleClaim = userRole.ToString();
-                        Log.Information("GetApplicationsByApplicant: Resolved role from role (string)={RoleClaim} -> {Role}", simpleRoleClaim.Value, userRole);
-                    }
-                }
-            }
-            
-            // Method 5: Search all claims for anything containing "role" (case-insensitive)
-            if (userRole == null)
-            {
-                var anyRoleClaim = User.Claims.FirstOrDefault(c => 
-                    c.Type.Contains("role", StringComparison.OrdinalIgnoreCase));
-                if (anyRoleClaim != null)
-                {
-                    roleClaim = anyRoleClaim.Value;
-                    if (int.TryParse(roleClaim, out int roleIntAny))
-                    {
-                        userRole = (UserRole)roleIntAny;
-                        roleClaim = userRole.ToString();
-                        Log.Information("GetApplicationsByApplicant: Resolved role from claim type '{ClaimType}' (numeric)={RoleValue} -> {Role}", 
-                            anyRoleClaim.Type, roleIntAny, userRole);
-                    }
-                    else if (Enum.TryParse<UserRole>(roleClaim, true, out var parsedRoleAny))
-                    {
-                        userRole = parsedRoleAny;
-                        Log.Information("GetApplicationsByApplicant: Resolved role from claim type '{ClaimType}' (string)={RoleClaim} -> {Role}", 
-                            anyRoleClaim.Type, roleClaim, userRole);
-                    }
-                }
-            }
-            
-            // Method 6: Fallback to IsInRole (less reliable with MapInboundClaims = false, but try anyway)
-            if (userRole == null)
-            {
-                if (User.IsInRole(UserRole.Admin.ToString()))
-                {
-                    userRole = UserRole.Admin;
-                    roleClaim = UserRole.Admin.ToString();
-                    Log.Information("GetApplicationsByApplicant: Resolved role from IsInRole (Admin)");
-                }
-                else if (User.IsInRole(UserRole.HR.ToString()))
-                {
-                    userRole = UserRole.HR;
-                    roleClaim = UserRole.HR.ToString();
-                    Log.Information("GetApplicationsByApplicant: Resolved role from IsInRole (HR)");
-                }
-                else if (User.IsInRole(UserRole.Applicant.ToString()))
-                {
-                    userRole = UserRole.Applicant;
-                    roleClaim = UserRole.Applicant.ToString();
-                    Log.Information("GetApplicationsByApplicant: Resolved role from IsInRole (Applicant)");
-                }
-            }
+            var userRole = GetUserRoleFromClaims();
             
             var allClaims = string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}"));
-            Log.Information("GetApplicationsByApplicant: User {CurrentUserId}, ApplicantId: {ApplicantId}, ResolvedRole: {Role}, RoleClaim: {RoleClaim}, AllClaims: {AllClaims}",
-                currentUserId, applicantId, userRole?.ToString() ?? "null", roleClaim ?? "null", allClaims);
+            Log.Information("GetApplicationsByApplicant: User {CurrentUserId}, ApplicantId: {ApplicantId}, ResolvedRole: {Role}, AllClaims: {AllClaims}",
+                currentUserId, applicantId, userRole?.ToString() ?? "null", allClaims);
 
-            // Check if user has a valid role (Admin, HR, or Applicant)
-            // If role detection failed, but user is authenticated and requesting their own applications, allow it
             if (userRole == null)
             {
-                // Fallback: If user is requesting their own applications (currentUserId == applicantId), allow it
-                // This handles cases where role detection fails but the user is clearly an applicant
                 if (currentUserId == applicantId)
                 {
                     Log.Warning("GetApplicationsByApplicant: Role detection failed for user {CurrentUserId}, but allowing access since they're requesting their own applications. All claims: {AllClaims}",
                         currentUserId, allClaims);
-                    // Continue to allow access - treat as applicant
                     userRole = UserRole.Applicant;
                 }
                 else
@@ -351,7 +221,6 @@ public class JobApplicationController : ControllerBase
                 }
             }
 
-            // For Applicant, verify they are viewing their own applications
             if (userRole == UserRole.Applicant)
             {
                 if (currentUserId != applicantId)
@@ -364,7 +233,6 @@ public class JobApplicationController : ControllerBase
             }
             else if (userRole == UserRole.Admin || userRole == UserRole.HR)
             {
-                // Admin/HR can view any applicant's applications
                 Log.Information("GetApplicationsByApplicant: {Role} user {CurrentUserId} viewing applications for applicant {ApplicantId}",
                     userRole, currentUserId, applicantId);
             }
@@ -375,10 +243,48 @@ public class JobApplicationController : ControllerBase
             }
 
             Log.Information("GetApplicationsByApplicant: Getting applications by applicant {ApplicantId} (requested by user {CurrentUserId}, Role: {Role}).",
-                applicantId, currentUserId, roleClaim ?? "unknown");
+                applicantId, currentUserId, userRole?.ToString() ?? "unknown");
             var applications = await _jobApplicationService.GetApplicationsByApplicantAsync(applicantId);
             Log.Information("GetApplicationsByApplicant: Retrieved {ApplicationCount} applications by applicant {ApplicantId}.", applications.Count(), applicantId);
             return Ok(applications);
+        }
+
+        private UserRole? GetUserRoleFromClaims()
+        {
+            var roleClaims = new List<string?>
+            {
+                User.FindFirst(ClaimTypes.Role)?.Value,
+                User.FindFirst("role")?.Value,
+                User.FindFirst("role_value")?.Value,
+                User.FindFirst("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")?.Value
+            };
+
+            foreach (var claim in User.Claims)
+            {
+                if (claim.Type.Contains("role", StringComparison.OrdinalIgnoreCase) && 
+                    !roleClaims.Contains(claim.Value))
+                {
+                    roleClaims.Add(claim.Value);
+                }
+            }
+
+            foreach (var claimValue in roleClaims)
+            {
+                if (string.IsNullOrWhiteSpace(claimValue))
+                    continue;
+
+                if (Enum.TryParse<UserRole>(claimValue, ignoreCase: true, out var parsedByName))
+                {
+                    return parsedByName;
+                }
+
+                if (int.TryParse(claimValue, out var parsedInt) && Enum.IsDefined(typeof(UserRole), parsedInt))
+                {
+                    return (UserRole)parsedInt;
+                }
+            }
+            
+            return null;
         }
 
         /// <summary>
@@ -409,40 +315,76 @@ public class JobApplicationController : ControllerBase
             return Ok(applications);
         }
 
-        /*/// <summary>
-        /// Review and update the status of a job application
+        /// <summary>
+        /// Update the status of a job application
         /// </summary>
         /// <param name="id">Application ID</param>
-        /// <param name="request">Review data</param>
-        /// <returns>Review result</returns>
-        /// <response code="200">Application reviewed successfully</response>
+        /// <param name="request">Status update data</param>
+        /// <returns>Status update result</returns>
+        /// <response code="200">Application status updated successfully</response>
         /// <response code="400">If the request data is invalid</response>
         /// <response code="404">If the application is not found</response>
         /// <response code="401">If the user is not authenticated</response>
         /// <response code="403">If the user does not have required role</response>
-        [HttpPut("{id}/review")]
-        [Authorize(Roles = "Manager,Admin")]
+        [HttpPut("{id}/status")]
+        [Authorize(Policy = "AdminOrHROnly")]
         [ProducesResponseType(200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(401)]
         [ProducesResponseType(403)]
-        public async Task<ActionResult> ReviewApplication(int id, request.ReviewerId,request.Status, request.ReviewNotes)
+        public async Task<ActionResult> UpdateApplicationStatus(int id, [FromBody] UpdateApplicationStatusRequest request)
         {
-            Log.Information("Reviewing application {ApplicationId} by reviewer {ReviewerId} with status {Status}", id, request.ReviewerId, request.Status);
+            if (request == null)
+            {
+                Log.Warning("UpdateApplicationStatus: Request body is null for application {ApplicationId}", id);
+                return BadRequest(new { Message = "Request body is required" });
+            }
+
+            Log.Information("UpdateApplicationStatus: Endpoint hit for application {ApplicationId} with status {Status}", id, request.Status);
+            
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int reviewerId))
+            {
+                Log.Warning("UpdateApplicationStatus: Invalid user ID claim for authenticated user.");
+                return Unauthorized(new { Message = "Invalid user authentication" });
+            }
+
+            if (!Enum.IsDefined(typeof(ApplicationStatus), request.Status))
+            {
+                Log.Warning("UpdateApplicationStatus: Invalid status value {Status} for application {ApplicationId}", request.Status, id);
+                return BadRequest(new { Message = $"Invalid status value. Valid values are: {string.Join(", ", Enum.GetValues(typeof(ApplicationStatus)).Cast<int>())}" });
+            }
+
+            var status = (ApplicationStatus)request.Status;
+            
+            Log.Information("UpdateApplicationStatus: Updating application {ApplicationId} by reviewer {ReviewerId} with status {Status}", id, reviewerId, status);
             
             try
             {
-                await _jobApplicationService.ReviewApplicationAsync(
-                    id, request.ReviewerId, request.Status, request.ReviewNotes);
+                await _jobApplicationService.ReviewApplicationAsync(id, reviewerId, status);
                 
-                Log.Information("Successfully reviewed application {ApplicationId}", id);
-                return Ok(new { Message = "Application reviewed successfully" });
+                Log.Information("Successfully updated status for application {ApplicationId} to {Status}", id, status);
+                return Ok(new { Message = "Application status updated successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                Log.Warning(ex, "UpdateApplicationStatus: Invalid operation for application {ApplicationId}", id);
+                if (ex.Message.Contains("not found"))
+                {
+                    return NotFound(new { Message = ex.Message });
+                }
+                return BadRequest(new { Message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Log.Warning(ex, "UpdateApplicationStatus: Unauthorized attempt to update application {ApplicationId}", id);
+                return StatusCode(403, new { Message = ex.Message });
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error reviewing application {ApplicationId}", id);
-                return BadRequest(new { Message = ex.Message });
+                Log.Error(ex, "UpdateApplicationStatus: Error updating status for application {ApplicationId}", id);
+                return StatusCode(500, new { Message = "An unexpected error occurred while updating the application status." });
             }
-        }*/
+        }
 }
