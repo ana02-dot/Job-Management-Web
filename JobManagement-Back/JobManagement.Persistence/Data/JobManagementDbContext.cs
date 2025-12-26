@@ -109,6 +109,7 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.ReviewedByUserId).IsRequired(false);
             entity.Property(e => e.ApplicantId).IsRequired();
             entity.Property(e => e.JobId).IsRequired();
+            entity.Property(e => e.Resume).IsRequired();
 
             // Unique constraint
             entity.HasIndex(e => new { e.JobId, e.ApplicantId }).IsUnique();

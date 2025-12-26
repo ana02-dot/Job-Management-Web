@@ -8,7 +8,7 @@ public class Applications : BaseEntity
 {
     public int JobId { get; set; }
     public int ApplicantId { get; set; }
-    public string Resume { get; set; } = null!; // File path or content
+    public string Resume { get; set; } = null!;
     public ApplicationStatus Status { get; set; }
     public DateTime AppliedAt { get; set; }
     public int? ReviewedByUserId { get; set; }
