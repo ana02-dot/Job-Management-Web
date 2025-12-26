@@ -23,7 +23,6 @@ public class JobRepository : IJobRepository
     {
         return await _context.Jobs
             .Include(j => j.Creator)
-            .Include(j => j.Applications)
             .Where(j => j.IsDeleted != 1)
             .FirstOrDefaultAsync(j => j.Id == id);
     }
