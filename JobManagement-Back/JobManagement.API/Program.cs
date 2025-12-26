@@ -28,7 +28,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 var preferredPort = builder.Configuration.GetValue("ServerOptions:PreferredPort", 5265);
 var httpPort = PortUtility.GetAvailablePort(preferredPort);
-builder.WebHost.UseUrls($"http://127.0.0.1:{httpPort}");
 builder.Services.AddSingleton(new ServerPortOptions(httpPort));
 
 // Configure Serilog
