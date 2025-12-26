@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
 import { JobApplicationService, Application, CreateApplicationRequest } from '../../services/job-application.service';
-import { LucideAngularModule, Search, Calendar } from 'lucide-angular';
+import { LucideAngularModule, Search, Calendar, User, LogOut, Briefcase, FileText, Clock, MapPin, DollarSign } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -221,12 +221,19 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
               <div class="flex gap-2">
                 <button
-                    (click)="navigateToApply(job.id)"
-                    [disabled]="hasApplied(job.id)"
-                    class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
-                  <span *ngIf="!hasApplied(job.id)">View Details & Apply</span>
-                  <span *ngIf="hasApplied(job.id)">Already Applied</span>
+                    (click)="navigateToJobDetails(job.id)"
+                    class="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-all duration-300 flex items-center gap-2">
+                  View Details
                 </button>
+                <button
+                    *ngIf="!hasApplied(job.id)"
+                    (click)="navigateToApply(job.id); $event.stopPropagation()"
+                    class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
+                  Apply Now
+                </button>
+                <span *ngIf="hasApplied(job.id)" class="px-6 py-2 bg-green-900/50 text-green-400 rounded-lg border border-green-500/50 flex items-center gap-2">
+                  Already Applied
+                </span>
               </div>
             </div>
           </div>
@@ -449,7 +456,7 @@ export class JobSeekerDashboardComponent implements OnInit {
   }
 
   navigateToJobDetails(jobId: number) {
-    this.router.navigate(['/apply', jobId]);
+    this.router.navigate(['/job', jobId]);
   }
 
   navigateToApply(jobId: number) {
