@@ -64,8 +64,39 @@ public class JobApplicationRepository : IJobApplicationRepository
 
         public async Task UpdateAsync(Applications application)
         {
-            _context.JobApplications.Update(application);
-            await _context.SaveChangesAsync();
+            // Store the values we want to update
+            var statusValue = application.Status;
+            var statusInt = (int)statusValue;
+            var reviewedByUserId = application.ReviewedByUserId;
+            var reviewedAt = application.ReviewedAt;
+            var updatedAt = application.UpdatedAt;
+            
+            var rowsAffected = await _context.JobApplications
+                .Where(a => a.Id == application.Id && a.IsDeleted == 0)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(a => a.Status, _ => (ApplicationStatus)statusInt) // Cast back to enum for type safety
+                    .SetProperty(a => a.ReviewedByUserId, _ => reviewedByUserId)
+                    .SetProperty(a => a.ReviewedAt, _ => reviewedAt)
+                    .SetProperty(a => a.UpdatedAt, _ => updatedAt));
+            
+            if (rowsAffected == 0)
+            {
+                throw new InvalidOperationException($"Application with ID {application.Id} not found or could not be updated");
+            }
+            
+            var updated = await _context.JobApplications
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == application.Id && a.IsDeleted == 0);
+            
+            if (updated == null)
+            {
+                throw new InvalidOperationException($"Application with ID {application.Id} was updated but could not be retrieved");
+            }
+            
+            application.Status = updated.Status;
+            application.ReviewedByUserId = updated.ReviewedByUserId;
+            application.ReviewedAt = updated.ReviewedAt;
+            application.UpdatedAt = updated.UpdatedAt;
         }
 
         public async Task DeleteAsync(int id)

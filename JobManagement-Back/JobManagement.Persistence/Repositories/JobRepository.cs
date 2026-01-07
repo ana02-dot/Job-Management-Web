@@ -23,6 +23,7 @@ public class JobRepository : IJobRepository
     {
         return await _context.Jobs
             .Include(j => j.Creator)
+            .Include(j => j.Applications)
             .Where(j => j.IsDeleted != 1)
             .FirstOrDefaultAsync(j => j.Id == id);
     }
@@ -68,8 +69,53 @@ public class JobRepository : IJobRepository
 
     public async Task UpdateAsync(Job job)
     {
-        _context.Jobs.Update(job);
-        await _context.SaveChangesAsync();
+        var title = job.Title;
+        var description = job.Description;
+        var requirements = job.Requirements;
+        var salary = job.Salary;
+        var location = job.Location;
+        var status = job.Status;
+        var applicationDeadline = job.ApplicationDeadline;
+        var workType = job.WorkType;
+        var category = job.Category;
+        var updatedAt = job.UpdatedAt;
+        
+        var rowsAffected = await _context.Jobs
+            .Where(j => j.Id == job.Id && j.IsDeleted != 1)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(j => j.Title, _ => title)
+                .SetProperty(j => j.Description, _ => description)
+                .SetProperty(j => j.Requirements, _ => requirements)
+                .SetProperty(j => j.Salary, _ => salary)
+                .SetProperty(j => j.Location, _ => location)
+                .SetProperty(j => j.Status, _ => status)
+                .SetProperty(j => j.ApplicationDeadline, _ => applicationDeadline)
+                .SetProperty(j => j.WorkType, _ => workType)
+                .SetProperty(j => j.Category, _ => category)
+                .SetProperty(j => j.UpdatedAt, _ => updatedAt));
+        
+        if (rowsAffected == 0)
+        {
+            throw new InvalidOperationException($"Job with ID {job.Id} not found or could not be updated");
+        }
+        
+        var updated = await _context.Jobs
+            .AsNoTracking()
+            .FirstOrDefaultAsync(j => j.Id == job.Id && j.IsDeleted != 1);
+        
+        if (updated != null)
+        {
+            job.Title = updated.Title;
+            job.Description = updated.Description;
+            job.Requirements = updated.Requirements;
+            job.Salary = updated.Salary;
+            job.Location = updated.Location;
+            job.Status = updated.Status;
+            job.ApplicationDeadline = updated.ApplicationDeadline;
+            job.WorkType = updated.WorkType;
+            job.Category = updated.Category;
+            job.UpdatedAt = updated.UpdatedAt;
+        }
     }
 
     public async Task DeleteAsync(int id)
@@ -81,5 +127,28 @@ public class JobRepository : IJobRepository
             job.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task<int> CloseExpiredJobsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var expiredJobs = await _context.Jobs
+            .Where(j => j.IsDeleted != 1 
+                && j.Status == JobStatus.Active 
+                && j.ApplicationDeadline < now)
+            .ToListAsync();
+
+        foreach (var job in expiredJobs)
+        {
+            job.Status = JobStatus.Closed;
+            job.UpdatedAt = now;
+        }
+
+        if (expiredJobs.Any())
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        return expiredJobs.Count;
     }
 }
