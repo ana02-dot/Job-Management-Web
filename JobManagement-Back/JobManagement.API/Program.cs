@@ -35,19 +35,24 @@ builder.Host.UseSerilog();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Handle circular references in navigation properties
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.WriteIndented = false;
-        // Use camelCase for JSON property names to match Angular conventions
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
+
+// Configure form options to support file uploads
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 10485760; // 10MB
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+});
 
 // Add services to the container
 builder.Services.AddSwaggerConfiguration(builder.Configuration);
 builder.Services.AddValidationConfiguration();
 
 builder.Services.AddAutoMapper(typeof(UserProfile));
-// Bind JwtSettings from appsettings.json
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
@@ -271,6 +276,7 @@ builder.Services.AddScoped<IJobApplicationRepository, JobApplicationRepository>(
 builder.Services.AddScoped<JobApplicationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddHttpClient<PhoneValidationService>();
+builder.Services.AddScoped<ICloudStorageService,CloudStorageService>();
 
 var app = builder.Build();
 
@@ -280,6 +286,9 @@ var portOptions = app.Services.GetRequiredService<ServerPortOptions>();
 app.UseSwaggerConfiguration();
 
 app.UseCors("AllowAngularApp");
+
+// Enable static file serving for uploads
+app.UseStaticFiles();
 
 app.UseRouting();
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
