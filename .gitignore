@@ -37,6 +37,17 @@ postgres-data/
 *.db
 *.sqlite
 
+# Configuration files with sensitive data
+appsettings.json
+appsettings.*.json
+
+# Docker compose with sensitive credentials
+docker-compose.yml
+docker-compose.*.yml
+
+# MinIO data
+minio-data/
+
 # Angular
 .angular/
 *.ngfactory.ts
