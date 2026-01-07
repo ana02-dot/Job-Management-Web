@@ -59,6 +59,11 @@ public class JobsController : ControllerBase
             return StatusCode(403, new { Message = "Invalid user authentication" });
         }
         
+        var closedCount = await _jobRepository.CloseExpiredJobsAsync();
+        if (closedCount > 0)
+        {
+            Log.Information("Closed {ClosedCount} expired jobs", closedCount);
+        }
         List<Job> jobs;
         
         if (resolvedRole == UserRole.Admin || resolvedRole == UserRole.Applicant)
@@ -96,6 +101,8 @@ public class JobsController : ControllerBase
     [ProducesResponseType(typeof(List<Job>), 200)]
     public async Task<ActionResult<List<Job>>> GetJobsByStatus(JobStatus status)
     {
+        await _jobRepository.CloseExpiredJobsAsync();
+        
         Log.Information("Getting jobs by status: {Status}", status);
         var jobs = await _jobRepository.GetByStatusAsync(status);
         Log.Information("Retrieved {JobCount} jobs", jobs.Count);
@@ -133,6 +140,8 @@ public class JobsController : ControllerBase
             
             Log.Information("GetJob - User ID: {UserId}, JobId: {JobId}, Role: {ResolvedRole}", 
                 userIdClaim ?? "Anonymous", id, resolvedRole?.ToString() ?? "null");
+            
+            await _jobRepository.CloseExpiredJobsAsync();
             
             var job = await _jobRepository.GetByIdAsync(id);
             if (job == null)

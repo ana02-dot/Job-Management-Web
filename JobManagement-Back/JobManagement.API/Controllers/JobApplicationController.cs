@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using JobManagement.Application.Services;
+﻿using JobManagement.Application.Services;
 using JobManagement.Application.Dtos;
 using JobManagement.Application.Interfaces;
 using JobManagement.Domain.Entities;
@@ -10,22 +7,28 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace JobManagement.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
-[Produces("application/json")]
-public class JobApplicationController : ControllerBase
-{
-    private readonly JobApplicationService _jobApplicationService;
-    private readonly IJobRepository _jobRepository;
-
-    public JobApplicationController(JobApplicationService jobApplicationService, IJobRepository jobRepository)
+    public class JobApplicationController : ControllerBase
     {
-        _jobApplicationService = jobApplicationService;
-        _jobRepository = jobRepository;
-    }
+        private readonly JobApplicationService _jobApplicationService;
+        private readonly IJobRepository _jobRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly ICloudStorageService _cloudStorageService;
+
+        public JobApplicationController(
+            JobApplicationService jobApplicationService, 
+            IJobRepository jobRepository,
+            IUserRepository userRepository,
+            ICloudStorageService cloudStorageService)
+        {
+            _jobApplicationService = jobApplicationService;
+            _jobRepository = jobRepository;
+            _userRepository = userRepository;
+            _cloudStorageService = cloudStorageService;
+        }
     /// <summary>
     /// Submit a new job application
     /// </summary>
@@ -35,6 +38,7 @@ public class JobApplicationController : ControllerBase
     /// <response code="400">If the request data is invalid</response>
     [HttpPost("submit")]
     [Authorize(Policy = "ApplicantOnly")]
+    [Produces("application/json")]
     [ProducesResponseType(typeof(ApplicationSubmissionResponse), 200)]
     [ProducesResponseType(400)]
     [ProducesResponseType(401)]
@@ -48,15 +52,37 @@ public class JobApplicationController : ControllerBase
             return Unauthorized(new { Message = "Invalid user authentication" });
         }
 
+        if (request == null)
+        {
+            return BadRequest(new { Message = "Request body is required." });
+        }
+
         Log.Information("SubmitApplication - User ID: {UserId}, Job ID: {JobId}", applicantId, request.JobId);
         
         try
         {
+            var applicant = await _userRepository.GetByIdAsync(applicantId);
+            if (applicant == null)
+            {
+                Log.Warning("SubmitApplication: Applicant {ApplicantId} not found", applicantId);
+                return BadRequest(new { Message = "Applicant not found" });
+            }
+
+            if (string.IsNullOrWhiteSpace(applicant.CvUrl))
+            {
+                Log.Warning("SubmitApplication: User {UserId} attempted to apply without uploading a CV", applicantId);
+                return BadRequest(new { 
+                    Message = "CV is required to submit an application. Please upload your CV in your profile before applying for jobs.",
+                    ErrorCode = "CV is required",
+                });
+            }
+
             var application = new Applications
             {
                 JobId = request.JobId,
-                Resume = request.Resume ?? string.Empty,
+                CoverLetter = request.CoverLetter ?? string.Empty
             };
+            
             var applicationId = await _jobApplicationService.SubmitApplicationAsync(application, applicantId);
             Log.Information("Successfully submitted application {ApplicationId} for job {JobId}", applicationId, request.JobId);
             return Ok(new ApplicationSubmissionResponse
@@ -283,7 +309,6 @@ public class JobApplicationController : ControllerBase
                     return (UserRole)parsedInt;
                 }
             }
-            
             return null;
         }
 
