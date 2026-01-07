@@ -15,4 +15,5 @@ public interface IJobRepository
     Task<Job> CreateAsync(Job job);
     Task UpdateAsync(Job job);
     Task DeleteAsync(int id);
+    Task<int> CloseExpiredJobsAsync();
 }
