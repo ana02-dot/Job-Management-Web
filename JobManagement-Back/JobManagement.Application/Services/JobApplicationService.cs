@@ -73,13 +73,21 @@ public class JobApplicationService
             await _jobApplicationRepository.UpdateAsync(application);
         }
 
-        public async Task<IEnumerable<Applications>> GetApplicationsByJobAsync(int jobId) =>
-            await _jobApplicationRepository.GetByJobIdAsync(jobId);
+        public async Task<IEnumerable<Applications>> GetApplicationsByJobAsync(int jobId)
+        {
+            await _jobRepository.CloseExpiredJobsAsync();
+            return await _jobApplicationRepository.GetByJobIdAsync(jobId);
+        }
         
-        public async Task<IEnumerable<Applications>> GetApplicationsByApplicantAsync(int applicantId) => 
-             await _jobApplicationRepository.GetByApplicantIdAsync(applicantId);
-        
+        public async Task<IEnumerable<Applications>> GetApplicationsByApplicantAsync(int applicantId)
+        {
+            await _jobRepository.CloseExpiredJobsAsync();
+            return await _jobApplicationRepository.GetByApplicantIdAsync(applicantId);
+        }
 
-        public async Task<IEnumerable<Applications>> GetPendingApplicationsAsync()  => 
-            await _jobApplicationRepository.GetByStatusAsync(ApplicationStatus.Pending); 
+        public async Task<IEnumerable<Applications>> GetPendingApplicationsAsync()
+        {
+            await _jobRepository.CloseExpiredJobsAsync();
+            return await _jobApplicationRepository.GetByStatusAsync(ApplicationStatus.Pending);
+        } 
 }
