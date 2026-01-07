@@ -45,6 +45,7 @@ export interface UserInfo {
   lastName: string;
   role: number;
   phoneNumber?: string;
+  cvUrl?: string;
 }
 
 export interface GetAllUsersResponse extends Array<UserInfo> {}
@@ -146,7 +147,7 @@ export class AuthService {
   private parseRole(roleString: string): number {
     if (roleString === 'HR' || roleString === '1') return 1;
     if (roleString === 'Admin' || roleString === '0') return 0;
-    return 2; // Default to Applicant
+    return 2;
   }
 
   private getClaimValue(payload: any, claimName: string, shortName?: string): string {
@@ -206,6 +207,38 @@ export class AuthService {
 
     return this.http.get<GetAllUsersResponse>(
         `${environment.apiUrl}/user`,
+        { headers }
+    ).pipe(
+        catchError(this.handleError)
+    );
+  }
+
+  getCurrentUserProfile(): Observable<UserInfo> {
+    const token = this.getToken();
+    const headers = new HttpHeaders({
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    });
+
+    return this.http.get<UserInfo>(
+        `${environment.apiUrl}/user/profile`,
+        { headers }
+    ).pipe(
+        catchError(this.handleError)
+    );
+  }
+
+  uploadCv(cvFile: File): Observable<{ message: string; cvUrl: string }> {
+    const token = this.getToken();
+    const formData = new FormData();
+    formData.append('cvFile', cvFile);
+
+    const headers = new HttpHeaders({
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    });
+
+    return this.http.post<{ message: string; cvUrl: string }>(
+        `${environment.apiUrl}/user/upload-cv`,
+        formData,
         { headers }
     ).pipe(
         catchError(this.handleError)
