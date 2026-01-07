@@ -16,6 +16,7 @@ public class User : BaseEntity
     public UserRole Role { get; set; }
     public bool IsEmailVerified { get; set; }
     public DateTime? EmailVerifiedAt { get; set; }
+    public string? CvUrl { get; set; }
 
     [JsonIgnore]
     public virtual ICollection<Job> CreatedJobs { get; set; } = new List<Job>();

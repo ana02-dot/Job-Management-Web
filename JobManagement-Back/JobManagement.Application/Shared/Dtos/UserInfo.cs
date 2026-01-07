@@ -13,5 +13,6 @@ public class UserInfo
     public UserRole Role { get; set; }
     public bool IsEmailVerified { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? CvUrl { get; set; } // URL to CV file in cloud storage
 
 }
