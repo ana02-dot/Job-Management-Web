@@ -39,6 +39,7 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.Role).HasConversion<int>();
             entity.Property(e => e.IsEmailVerified).IsRequired().HasDefaultValue(false);
             entity.Property(e => e.EmailVerifiedAt).IsRequired(false);
+            entity.Property(e => e.CvUrl).HasMaxLength(500).IsRequired(false);
 
             // Navigation properties configuration
             entity.HasMany(u => u.Applications)
@@ -109,7 +110,10 @@ public class JobManagementDbContext : DbContext
             entity.Property(e => e.ReviewedByUserId).IsRequired(false);
             entity.Property(e => e.ApplicantId).IsRequired();
             entity.Property(e => e.JobId).IsRequired();
-            entity.Property(e => e.Resume).IsRequired();
+            entity.Property(e => e.CoverLetter)
+                .IsRequired()
+                .HasColumnName("Resume");
+            entity.Ignore(e => e.CvFilePath);
 
             // Unique constraint
             entity.HasIndex(e => new { e.JobId, e.ApplicantId }).IsUnique();
