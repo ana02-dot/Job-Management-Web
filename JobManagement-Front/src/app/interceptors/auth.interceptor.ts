@@ -10,10 +10,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
     // If token exists, clone the request and add Authorization header
     if (token) {
+        // For FormData requests, don't set Content-Type - let browser set it with boundary
+        const headers: { [key: string]: string } = {
+            Authorization: `Bearer ${token}`
+        };
+        
+        // Only set headers, don't touch Content-Type for FormData
         const clonedRequest = req.clone({
-            setHeaders: {
-                Authorization: `Bearer ${token}`
-            }
+            setHeaders: headers
         });
 
         return next(clonedRequest);

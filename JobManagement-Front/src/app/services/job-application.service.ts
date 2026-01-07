@@ -7,7 +7,8 @@ export interface Application {
   id: number;
   jobId: number;
   applicantId: number;
-  resume: string;
+  resume: string; 
+  coverLetter?: string;
   status: number; // 0 = Pending, 1 = UnderReview, 2 = Approved, 3 = Rejected, 4 = Withdrawn
   appliedAt: string;
   reviewedByUserId?: number;
@@ -19,6 +20,7 @@ export interface Application {
     lastName: string;
     email: string;
     phoneNumber?: string;
+    cvUrl?: string;
   };
 }
 
@@ -26,6 +28,7 @@ export interface CreateApplicationRequest {
   jobId: number;
   applicantId: number;
   resume?: string;
+  coverLetter?: string;
 }
 
 @Injectable({
@@ -59,6 +62,24 @@ export class JobApplicationService {
   createApplication(application: CreateApplicationRequest): Observable<any> {
 
     return this.http.post(`${environment.apiUrl}/jobapplication/submit`, application);
+
+  }
+
+  createApplicationWithFile(jobId: number, resumeFile: File | null, coverLetter?: string): Observable<any> {
+    // Send JSON instead of FormData (file upload removed)
+    const requestBody: CreateApplicationRequest = {
+      jobId: jobId,
+      applicantId: 0, // Will be set by backend from JWT token
+      coverLetter: coverLetter || ''
+    };
+
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json'
+    });
+    
+    return this.http.post(`${environment.apiUrl}/jobapplication/submit`, requestBody, {
+      headers: headers
+    });
 
   }
 

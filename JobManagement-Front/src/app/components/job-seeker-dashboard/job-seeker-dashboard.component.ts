@@ -1,11 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job } from '../../services/job.service';
 import { JobApplicationService, Application, CreateApplicationRequest } from '../../services/job-application.service';
-import { LucideAngularModule, Search, Calendar, User, LogOut, Briefcase, FileText, Clock, MapPin, DollarSign } from 'lucide-angular';
+import { LucideAngularModule, Search, Calendar, FileText, AlertCircle, ExternalLink, Upload } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -85,13 +85,22 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                 Available Jobs
               </button>
               <button
-                  (click)="activeTab = 'applications'"
+                  (click)="switchToApplicationsTab()"
                   [class.border-b-2]="activeTab === 'applications'"
                   [class.border-cyan-500]="activeTab === 'applications'"
                   [class.text-cyan-400]="activeTab === 'applications'"
                   [class.text-slate-400]="activeTab !== 'applications'"
                   class="px-6 py-3 font-medium transition-colors">
                 My Applications
+              </button>
+              <button
+                  (click)="activeTab = 'profile'"
+                  [class.border-b-2]="activeTab === 'profile'"
+                  [class.border-cyan-500]="activeTab === 'profile'"
+                  [class.text-cyan-400]="activeTab === 'profile'"
+                  [class.text-slate-400]="activeTab !== 'profile'"
+                  class="px-6 py-3 font-medium transition-colors">
+                My Profile
               </button>
             </div>
           </div>
@@ -221,19 +230,12 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
               <div class="flex gap-2">
                 <button
-                    (click)="navigateToJobDetails(job.id)"
-                    class="px-6 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-600 transition-all duration-300 flex items-center gap-2">
-                  View Details
+                    (click)="navigateToApply(job.id)"
+                    [disabled]="hasApplied(job.id)"
+                    class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
+                  <span *ngIf="!hasApplied(job.id)">View Details & Apply</span>
+                  <span *ngIf="hasApplied(job.id)">Already Applied</span>
                 </button>
-                <button
-                    *ngIf="!hasApplied(job.id)"
-                    (click)="navigateToApply(job.id); $event.stopPropagation()"
-                    class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(6,182,212,0.5)]">
-                  Apply Now
-                </button>
-                <span *ngIf="hasApplied(job.id)" class="px-6 py-2 bg-green-900/50 text-green-400 rounded-lg border border-green-500/50 flex items-center gap-2">
-                  Already Applied
-                </span>
               </div>
             </div>
           </div>
@@ -281,6 +283,94 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
             </div>
           </div>
         </div>
+
+        <div *ngIf="activeTab === 'profile'" class="bg-slate-800 rounded-lg border border-slate-700 p-6">
+          <h2 class="text-2xl font-bold mb-4 text-white">My Profile</h2>
+
+          <!-- CV Upload Section -->
+          <div class="bg-slate-900/50 rounded-lg border border-slate-700 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-white mb-4">CV / Resume</h3>
+            
+            <div *ngIf="userProfile?.cvUrl" class="mb-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <lucide-file-text class="w-5 h-5 text-green-400" />
+                  <div>
+                    <p class="text-sm font-medium text-green-400">CV Uploaded</p>
+                    <p class="text-xs text-slate-400 mt-1">Your CV is ready to use for job applications</p>
+                  </div>
+                </div>
+                <a [href]="userProfile.cvUrl" target="_blank" 
+                   class="px-4 py-2 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/30 transition-colors text-sm flex items-center gap-2">
+                  <lucide-external-link class="w-4 h-4" />
+                  View CV
+                </a>
+              </div>
+            </div>
+
+            <div *ngIf="!userProfile?.cvUrl" class="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+              <div class="flex items-center gap-3">
+                <lucide-alert-circle class="w-5 h-5 text-yellow-400" />
+                <div>
+                  <p class="text-sm font-medium text-yellow-400">No CV Uploaded</p>
+                  <p class="text-xs text-slate-400 mt-1">You need to upload your CV before applying for jobs</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <label class="block text-sm font-medium mb-2 text-slate-300">
+                {{ userProfile?.cvUrl ? 'Update CV' : 'Upload CV' }} (PDF only)
+              </label>
+              <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-700 border-dashed rounded-lg hover:border-cyan-500/50 transition-colors">
+                <div class="space-y-1 text-center">
+                  <lucide-file-text class="mx-auto h-12 w-12 text-slate-500" />
+                  <div class="flex text-sm text-slate-400">
+                    <label for="cv-file" class="relative cursor-pointer rounded-md font-medium text-cyan-400 hover:text-cyan-300 focus-within:outline-none focus-within:ring-2 focus-within:ring-cyan-500">
+                      <span>Upload a PDF file</span>
+                      <input
+                        id="cv-file"
+                        name="cv-file"
+                        type="file"
+                        accept=".pdf"
+                        (change)="onCvFileSelected($event)"
+                        class="sr-only">
+                    </label>
+                    <p class="pl-1">or drag and drop</p>
+                  </div>
+                  <p class="text-xs text-slate-500">File up to 10MB</p>
+                  <p *ngIf="selectedCvFile" class="text-sm text-cyan-400 mt-2">
+                    Selected: {{ selectedCvFile.name }}
+                  </p>
+                </div>
+              </div>
+              
+              <div *ngIf="selectedCvFile" class="mt-4 flex gap-2">
+                <button
+                  (click)="uploadCv()"
+                  [disabled]="isUploadingCv"
+                  class="px-6 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2">
+                  <lucide-upload class="w-4 h-4" />
+                  <span *ngIf="!isUploadingCv">{{ userProfile?.cvUrl ? 'Update CV' : 'Upload CV' }}</span>
+                  <span *ngIf="isUploadingCv">Uploading...</span>
+                </button>
+                <button
+                  (click)="selectedCvFile = null"
+                  class="px-6 py-2 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="cvUploadError" class="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+              <p class="text-sm text-red-400">{{ cvUploadError }}</p>
+            </div>
+
+            <div *ngIf="cvUploadSuccess" class="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <p class="text-sm text-green-400">{{ cvUploadSuccess }}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -291,16 +381,22 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
     }
   `]
 })
-export class JobSeekerDashboardComponent implements OnInit {
+export class JobSeekerDashboardComponent implements OnInit, OnDestroy {
   userName = '';
   availableJobs: Job[] = [];
   filteredJobs: Job[] = [];
   myApplications: Application[] = [];
-  applicationJobs: Map<number, Job> = new Map(); // Map to store job details by jobId
+  applicationJobs: Map<number, Job> = new Map();
   isLoadingJobs = false;
   isLoadingApplications = false;
-  activeTab: 'jobs' | 'applications' = 'jobs';
+  activeTab: 'jobs' | 'applications' | 'profile' = 'jobs';
   currentUserId = 0;
+  private refreshInterval?: any;
+  userProfile: any = null;
+  selectedCvFile: File | null = null;
+  isUploadingCv = false;
+  cvUploadError = '';
+  cvUploadSuccess = '';
 
   filters = {
     title: '',
@@ -324,11 +420,24 @@ export class JobSeekerDashboardComponent implements OnInit {
       this.router.navigate(['/auth']);
       return;
     }
+    this.loadUserProfile();
 
     this.userName = `${user.firstName} ${user.lastName}` || user.email;
     this.currentUserId = user.id;
     this.loadAvailableJobs();
     this.loadMyApplications();
+    
+    this.refreshInterval = setInterval(() => {
+      if (this.activeTab === 'applications') {
+        this.loadMyApplications();
+      }
+    }, 30000); // Refresh every 30 seconds
+  }
+
+  ngOnDestroy() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
   }
 
   loadAvailableJobs() {
@@ -414,6 +523,11 @@ export class JobSeekerDashboardComponent implements OnInit {
     this.filteredJobs = this.availableJobs;
   }
 
+  switchToApplicationsTab() {
+    this.activeTab = 'applications';
+    this.loadMyApplications();
+  }
+
   loadMyApplications() {
     this.isLoadingApplications = true;
     const user = this.authService.getCurrentUser();
@@ -456,7 +570,7 @@ export class JobSeekerDashboardComponent implements OnInit {
   }
 
   navigateToJobDetails(jobId: number) {
-    this.router.navigate(['/job', jobId]);
+    this.router.navigate(['/apply', jobId]);
   }
 
   navigateToApply(jobId: number) {
@@ -481,9 +595,68 @@ export class JobSeekerDashboardComponent implements OnInit {
       1: 'Under Review',
       2: 'Approved',
       3: 'Rejected',
-      4: 'Withdrawn'
     };
     return statusMap[status] || 'Unknown';
+  }
+
+  loadUserProfile() {
+    this.authService.getCurrentUserProfile().subscribe({
+      next: (profile) => {
+        this.userProfile = profile;
+      },
+      error: (error) => {
+        console.error('Error loading user profile:', error);
+      }
+    });
+  }
+
+  onCvFileSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      // Validate file type
+      if (file.type !== 'application/pdf') {
+        this.cvUploadError = 'Only PDF files are allowed.';
+        this.selectedCvFile = null;
+        return;
+      }
+      // Validate file size (10MB max)
+      if (file.size > 10 * 1024 * 1024) {
+        this.cvUploadError = 'File size must be less than 10MB.';
+        this.selectedCvFile = null;
+        return;
+      }
+      this.selectedCvFile = file;
+      this.cvUploadError = '';
+      this.cvUploadSuccess = '';
+    }
+  }
+
+  uploadCv() {
+    if (!this.selectedCvFile) {
+      this.cvUploadError = 'Please select a file to upload.';
+      return;
+    }
+
+    this.isUploadingCv = true;
+    this.cvUploadError = '';
+    this.cvUploadSuccess = '';
+
+    this.authService.uploadCv(this.selectedCvFile).subscribe({
+      next: (response) => {
+        this.cvUploadSuccess = response.message || 'CV uploaded successfully!';
+        this.selectedCvFile = null;
+        this.isUploadingCv = false;
+        this.loadUserProfile();
+        setTimeout(() => {
+          this.cvUploadSuccess = '';
+        }, 5000);
+      },
+      error: (error) => {
+        console.error('Error uploading CV:', error);
+        this.cvUploadError = error?.error?.message || 'Failed to upload CV. Please try again.';
+        this.isUploadingCv = false;
+      }
+    });
   }
 
   getStatusBadgeClass(status: number): string {

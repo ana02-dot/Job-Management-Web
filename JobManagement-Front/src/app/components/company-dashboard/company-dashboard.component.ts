@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { JobService, Job, CreateJobRequest } from '../../services/job.service';
 import { JobApplicationService, Application } from '../../services/job-application.service';
-import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut, AlertCircle, User } from 'lucide-angular';
+import { LucideAngularModule, Briefcase, MapPin, Calendar, DollarSign, Users, Eye, XCircle, CheckCircle, Clock, LogOut, AlertCircle, User, FileText } from 'lucide-angular';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
 @Component({
@@ -110,7 +110,6 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                     [(ngModel)]="newJob.title"
                     name="title"
                     class="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-white placeholder-slate-500"
-                    placeholder="e.g. Senior Software Engineer"
                     required>
               </div>
               <div>
@@ -132,7 +131,6 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                   name="description"
                   rows="4"
                   class="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-white placeholder-slate-500"
-                  placeholder="Describe the role and responsibilities..."
                   required></textarea>
             </div>
 
@@ -143,7 +141,6 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                   name="requirements"
                   rows="3"
                   class="w-full px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-white placeholder-slate-500"
-                  placeholder="List the required qualifications and skills..."
                   required></textarea>
             </div>
 
@@ -331,6 +328,16 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                         <span class="text-slate-400">Phone:</span>
                         <span class="text-slate-300 ml-2">{{ app.applicant.phoneNumber }}</span>
                       </div>
+                      <div *ngIf="app.applicant.cvUrl" class="text-sm mt-2">
+                        <a [href]="app.applicant.cvUrl" target="_blank" 
+                           class="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/30 transition-colors text-sm font-medium">
+                          <lucide-file-text class="w-4 h-4" />
+                          View CV/Resume (PDF)
+                        </a>
+                      </div>
+                      <div *ngIf="!app.applicant.cvUrl" class="text-sm mt-2">
+                        <span class="text-yellow-400/80 italic">No CV uploaded by applicant</span>
+                      </div>
                     </div>
                     <div *ngIf="!app.applicant" class="text-sm text-slate-400 mb-3">
                       Applicant ID: {{ app.applicantId }}
@@ -346,28 +353,34 @@ import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
                   </div>
                 </div>
                 <div *ngIf="app.resume" class="mt-4 pt-4 border-t border-slate-700">
-                  <div class="text-sm font-medium text-slate-300 mb-2">Resume / Cover Letter:</div>
+                  <div class="text-sm font-medium text-slate-300 mb-2">Cover Letter:</div>
                   <div class="text-sm text-slate-400 bg-slate-800/50 rounded-lg p-4 whitespace-pre-wrap max-h-48 overflow-y-auto">
                     {{ app.resume }}
                   </div>
                 </div>
                 <div class="mt-4 pt-4 border-t border-slate-700">
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-3 flex-wrap">
                     <label class="text-sm font-medium text-slate-300">Update Status:</label>
                     <select
                         [(ngModel)]="app.status"
-                        (ngModelChange)="updateApplicationStatus(app.id, $event)"
                         [disabled]="isUpdatingStatus(app.id)"
                         class="px-3 py-2 bg-slate-900/50 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                       <option [ngValue]="0">Pending</option>
                       <option [ngValue]="1">Under Review</option>
                       <option [ngValue]="2">Approved</option>
                       <option [ngValue]="3">Rejected</option>
-                      <option [ngValue]="4">Withdrawn</option>
                     </select>
+                    <button
+                        (click)="saveApplicationStatus(app.id, app.status)"
+                        [disabled]="isUpdatingStatus(app.id) || !hasUnsavedChanges(app.id)"
+                        class="pr-4 pl-0 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-400 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                      <lucide-check-circle class="w-4 h-4 ml-2" />
+                      <span *ngIf="!isUpdatingStatus(app.id)">Save</span>
+                      <span *ngIf="isUpdatingStatus(app.id)">Saving...</span>
+                    </button>
                     <div *ngIf="isUpdatingStatus(app.id)" class="flex items-center gap-2 text-sm text-slate-400">
                       <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
-                      <span>Updating...</span>
+                      <span>Saving...</span>
                     </div>
                   </div>
                 </div>
@@ -402,8 +415,9 @@ export class CompanyDashboardComponent implements OnInit {
   applications: Application[] = [];
   totalApplications = 0;
   pendingApplications = 0;
-  jobApplicationCounts: Map<number, number> = new Map(); // Map to store application counts per job
-  updatingStatus: Map<number, boolean> = new Map(); // Track which application is being updated
+  jobApplicationCounts: Map<number, number> = new Map(); 
+  updatingStatus: Map<number, boolean> = new Map(); 
+  originalStatuses: Map<number, number> = new Map();
   errorMessage = '';
   successMessage = '';
   minDate = new Date().toISOString().split('T')[0];
@@ -504,8 +518,6 @@ export class CompanyDashboardComponent implements OnInit {
             const createdBy = (j as any).createdBy ?? (j as any).CreatedBy;
             return createdBy !== user.id;
           });
-          console.log('👤 My jobs (createdBy=' + user.id + '):', myJobs.length);
-          console.log('👥 Other users\' jobs:', otherJobs.length);
           if (otherJobs.length > 0) {
             console.warn(' WARNING: Showing jobs from other users!', otherJobs.map(j => ({
               id: j.id,
@@ -546,7 +558,7 @@ export class CompanyDashboardComponent implements OnInit {
       category: this.newJob.category.trim(),
       applicationDeadline: this.newJob.applicationDeadline && this.newJob.applicationDeadline.trim()
           ? new Date(this.newJob.applicationDeadline).toISOString()
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // Default to 30 days from now
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     };
 
     console.log('Creating job with data:', jobData);
@@ -670,6 +682,10 @@ export class CompanyDashboardComponent implements OnInit {
       next: (apps: Application[]) => {
         console.log(' Applications loaded successfully:', apps.length);
         this.applications = apps;
+        this.originalStatuses.clear();
+        apps.forEach(app => {
+          this.originalStatuses.set(app.id, app.status);
+        });
         this.updateApplicationStats();
       },
       error: (error: any) => {
@@ -793,14 +809,22 @@ export class CompanyDashboardComponent implements OnInit {
     return this.updatingStatus.get(applicationId) || false;
   }
 
-  updateApplicationStatus(applicationId: number, newStatus: number) {
+  hasUnsavedChanges(applicationId: number): boolean {
+    const application = this.applications.find(app => app.id === applicationId);
+    if (!application) return false;
+    const originalStatus = this.originalStatuses.get(applicationId);
+    return originalStatus !== undefined && application.status !== originalStatus;
+  }
+
+  saveApplicationStatus(applicationId: number, newStatus: number) {
     const application = this.applications.find(app => app.id === applicationId);
     if (!application) {
       this.errorMessage = 'Application not found.';
       return;
     }
 
-    if (application.status === newStatus) {
+    const originalStatus = this.originalStatuses.get(applicationId);
+    if (originalStatus === undefined || application.status === originalStatus) {
       return;
     }
 
@@ -814,15 +838,20 @@ export class CompanyDashboardComponent implements OnInit {
       next: (response) => {
         console.log('Application status updated successfully:', response);
         
-        application.status = newStatus;
+        this.originalStatuses.set(applicationId, newStatus);
         
+        application.status = newStatus;
         application.reviewedAt = new Date().toISOString();
 
         this.jobApplicationCounts.set(this.selectedJobId, this.applications.length);
         this.loadApplicationStats();
 
-        this.successMessage = `Application status updated to "${this.getApplicationStatusText(newStatus)}"`;
+        this.successMessage = `Application status saved as "${this.getApplicationStatusText(newStatus)}"`;
         this.updatingStatus.set(applicationId, false);
+
+        setTimeout(() => {
+          this.refreshApplications();
+        }, 500);
 
         setTimeout(() => {
           this.successMessage = '';
@@ -830,9 +859,12 @@ export class CompanyDashboardComponent implements OnInit {
       },
       error: (error: any) => {
         console.error('Error updating application status:', error);
-        application.status = oldStatus;
+        const originalStatus = this.originalStatuses.get(applicationId);
+        if (originalStatus !== undefined) {
+          application.status = originalStatus;
+        }
         
-        let message = 'Failed to update application status. ';
+        let message = 'Failed to save application status. ';
         const status = error?.status ?? error?.originalError?.status ?? 0;
         const serverMessage = error?.originalError?.error?.message ||
             error?.error?.message ||
@@ -856,6 +888,25 @@ export class CompanyDashboardComponent implements OnInit {
         setTimeout(() => {
           this.errorMessage = '';
         }, 5000);
+      }
+    });
+  }
+
+  refreshApplications() {
+    if (!this.selectedJobId) return;
+    
+    this.jobApplicationService.getApplicationsByJobId(this.selectedJobId).subscribe({
+      next: (apps: Application[]) => {
+        console.log('Applications refreshed from database:', apps.length);
+        this.applications = apps;
+        this.originalStatuses.clear();
+        apps.forEach(app => {
+          this.originalStatuses.set(app.id, app.status);
+        });
+        this.updateApplicationStats();
+      },
+      error: (error: any) => {
+        console.error('Error refreshing applications:', error);
       }
     });
   }
