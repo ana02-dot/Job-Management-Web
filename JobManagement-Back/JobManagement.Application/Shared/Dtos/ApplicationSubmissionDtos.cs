@@ -4,7 +4,7 @@ public class ApplicationSubmissionRequest
 {
     public int JobId { get; set; }
     public int? ApplicantId { get; set; }
-    public string? Resume { get; set; }
+    public string? CoverLetter { get; set; }
 }
 
 public class ApplicationSubmissionResponse
